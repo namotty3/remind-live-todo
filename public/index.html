@@ -401,7 +401,12 @@ function buildCalEvents() {
 async function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  [lives, events] = await Promise.all([api('GET', '/lives'), api('GET', '/events')]);
+  try {
+    [lives, events] = await Promise.all([api('GET', '/lives'), api('GET', '/events')]);
+  } catch {
+    try { lives = await api('GET', '/lives'); } catch { lives = []; }
+    events = [];
+  }
   if (cal) { cal.destroy(); cal = null; }
   cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
     locale: 'ja',
@@ -420,7 +425,12 @@ async function showApp() {
 }
 
 async function refresh() {
-  [lives, events] = await Promise.all([api('GET', '/lives'), api('GET', '/events')]);
+  try {
+    [lives, events] = await Promise.all([api('GET', '/lives'), api('GET', '/events')]);
+  } catch {
+    try { lives = await api('GET', '/lives'); } catch { lives = []; }
+    events = [];
+  }
   cal.removeAllEvents();
   buildCalEvents().forEach(e => cal.addEvent(e));
 }
