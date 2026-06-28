@@ -131,6 +131,30 @@
     .sl-btn.rm { background: #ffe0e0; color: #e00; }
     .setlist-empty { font-size: 13px; color: #bbb; text-align: center; padding: 8px 0; }
 
+    /* ---- Merch ---- */
+    #merch-view { display: none; }
+    .merch-section { background:#fff; border-radius:14px; padding:18px 20px; box-shadow:0 2px 8px rgba(0,0,0,.08); margin-bottom:14px; }
+    .merch-section h3 { font-size:16px; font-weight:700; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+    .merch-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #f0f0f0; }
+    .merch-row:last-child { border-bottom:none; }
+    .merch-item-name { flex:1; font-size:15px; }
+    .merch-item-price { font-size:13px; color:#888; width:70px; text-align:right; }
+    .qty-ctrl { display:flex; align-items:center; gap:6px; }
+    .qty-btn { width:32px; height:32px; border:2px solid #ddd; background:#fff; border-radius:8px; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1; transition:border-color .1s; }
+    .qty-btn:hover { border-color:#00B900; }
+    .qty-num { width:36px; text-align:center; font-size:16px; font-weight:700; }
+    .merch-item-sub { width:70px; text-align:right; font-size:13px; color:#333; }
+    .merch-total-bar { background:#f9f9f9; border-radius:10px; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; margin-top:10px; }
+    .merch-total-bar span:first-child { font-size:14px; color:#666; }
+    .merch-total-bar span:last-child { font-size:20px; font-weight:700; color:#00B900; }
+    .merch-history-row { display:grid; grid-template-columns:1fr 80px 90px; gap:8px; padding:10px 0; border-bottom:1px solid #f0f0f0; font-size:14px; align-items:center; }
+    .merch-history-row:last-child { border-bottom:none; }
+    .merch-history-head { font-weight:700; font-size:12px; color:#888; }
+    .merch-item-manage { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #f0f0f0; }
+    .merch-item-manage:last-child { border-bottom:none; }
+    .back-btn { padding:8px 16px; background:#f0f0f0; border:none; border-radius:8px; font-size:14px; cursor:pointer; }
+    .back-btn:hover { background:#ddd; }
+
     /* ---- Live meta / Tasks ---- */
     .live-meta { margin-bottom: 16px; }
     .live-meta p { font-size: 14px; color: #555; margin-top: 6px; }
@@ -166,11 +190,11 @@
 
   <!-- Portal links -->
   <div id="portal-links">
-    <a class="portal-card" href="#" data-soon="true">
+    <a class="portal-card" href="#" onclick="showMerch();return false;">
       <div class="portal-icon">🛒</div>
       <div class="portal-info">
         <div class="portal-title">物販売り上げシステム</div>
-        <div class="portal-sub">Coming soon</div>
+        <div class="portal-sub">売上入力・履歴確認</div>
       </div>
     </a>
     <a class="portal-card" href="https://sustaining-yarrow-939.notion.site/Admin-1b56a6cef79f8032baddc405f2836d03" target="_blank">
@@ -182,6 +206,31 @@
     </a>
   </div>
 
+  <!-- Merch view -->
+  <div id="merch-view">
+    <div class="merch-section">
+      <h3>🛒 売上入力
+        <button class="back-btn" style="margin-left:auto" onclick="showCalendar()">← カレンダーに戻る</button>
+      </h3>
+      <select id="merch-live-select" onchange="loadMerchSales()" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:8px;font-size:15px;margin-bottom:14px">
+        <option value="">-- ライブを選択 --</option>
+      </select>
+      <div id="merch-items-list"></div>
+      <div class="merch-total-bar" style="margin-top:14px">
+        <span>合計金額</span>
+        <span id="merch-total">¥0</span>
+      </div>
+      <button class="btn btn-green" style="margin-top:12px;width:100%" onclick="saveMerchSales()">💾 保存する</button>
+    </div>
+
+    <div class="merch-section">
+      <h3>📊 ライブ別売上履歴
+        <button class="back-btn" style="margin-left:auto;font-size:12px" onclick="openMerchItems()">⚙️ メニュー管理</button>
+      </h3>
+      <div id="merch-history"></div>
+    </div>
+  </div>
+
   <!-- Calendar -->
   <div id="calendar-wrap">
     <div class="legend">
@@ -191,6 +240,28 @@
       <span class="legend-item"><span class="dot" style="background:#4A90D9"></span>予定</span>
     </div>
     <div id="calendar"></div>
+  </div>
+</div>
+
+<!-- Merch item management modal -->
+<div class="overlay" id="merch-items-overlay">
+  <div class="modal">
+    <div class="modal-head" style="background:#e67e22">
+      <h2>⚙️ メニュー管理</h2>
+      <button class="x" onclick="close_('merch-items-overlay')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="merch-items-manage-list"></div>
+      <div style="margin-top:16px;padding-top:14px;border-top:2px solid #eee">
+        <p style="font-size:13px;color:#666;margin-bottom:8px">新しいメニューを追加</p>
+        <input type="text" id="new-item-name" placeholder="商品名（例：Tシャツ）" style="margin-bottom:8px">
+        <input type="number" id="new-item-price" placeholder="価格（例：2500）" min="0">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-gray" onclick="close_('merch-items-overlay')">閉じる</button>
+      <button class="btn btn-green" onclick="addMerchItem()">追加する</button>
+    </div>
   </div>
 </div>
 
@@ -393,6 +464,8 @@ let editSetlist = [];
 let currentLiveId = null;
 let currentEventId = null;
 let pendingDate = '';
+let merchItems = [];
+let merchQty = {};
 
 // ---- Auth ----
 async function doLogin() {
@@ -500,6 +573,206 @@ async function refresh() {
   }
   cal.removeAllEvents();
   buildCalEvents().forEach(e => cal.addEvent(e));
+}
+
+// ---- View switching ----
+function showMerch() {
+  document.getElementById('calendar-wrap').style.display = 'none';
+  document.getElementById('merch-view').style.display = 'block';
+  loadMerchView();
+}
+function showCalendar() {
+  document.getElementById('merch-view').style.display = 'none';
+  document.getElementById('calendar-wrap').style.display = 'block';
+}
+
+// ---- Merch ----
+async function loadMerchView() {
+  merchItems = await api('GET', '/merch/items');
+  renderMerchLiveSelect();
+  await loadMerchHistory();
+}
+
+function renderMerchLiveSelect() {
+  const sel = document.getElementById('merch-live-select');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">-- ライブを選択 --</option>';
+  [...lives].sort((a, b) => b.date.localeCompare(a.date)).forEach(l => {
+    const opt = document.createElement('option');
+    opt.value = l.id;
+    opt.textContent = `${l.date} ${l.name || l.type}`;
+    sel.appendChild(opt);
+  });
+  if (cur) sel.value = cur;
+  merchQty = {};
+  renderMerchItemInputs();
+}
+
+async function loadMerchSales() {
+  const liveId = document.getElementById('merch-live-select').value;
+  merchQty = {};
+  if (liveId) {
+    const sales = await api('GET', `/merch/sales/${liveId}`);
+    sales.forEach(s => { merchQty[s.item_id] = s.quantity; });
+  }
+  renderMerchItemInputs();
+}
+
+function renderMerchItemInputs() {
+  const el = document.getElementById('merch-items-list');
+  const active = merchItems.filter(i => i.is_active);
+  if (active.length === 0) {
+    el.innerHTML = '<p style="color:#aaa;text-align:center;padding:16px">メニューが登録されていません。<br>「メニュー管理」から追加してください。</p>';
+    calcMerchTotal();
+    return;
+  }
+  el.innerHTML = '';
+  active.forEach(item => {
+    const qty = merchQty[item.id] || 0;
+    const sub = qty * item.price;
+    const div = document.createElement('div');
+    div.className = 'merch-row';
+    div.innerHTML = `
+      <div class="merch-item-name">${item.name}</div>
+      <div class="merch-item-price">¥${item.price.toLocaleString()}</div>
+      <div class="qty-ctrl">
+        <button class="qty-btn" onclick="changeQty(${item.id},${item.price},-1)">−</button>
+        <div class="qty-num" id="qty-${item.id}">${qty}</div>
+        <button class="qty-btn" onclick="changeQty(${item.id},${item.price},1)">＋</button>
+      </div>
+      <div class="merch-item-sub" id="sub-${item.id}">¥${sub.toLocaleString()}</div>`;
+    el.appendChild(div);
+  });
+  calcMerchTotal();
+}
+
+function changeQty(itemId, price, delta) {
+  merchQty[itemId] = Math.max(0, (merchQty[itemId] || 0) + delta);
+  document.getElementById(`qty-${itemId}`).textContent = merchQty[itemId];
+  document.getElementById(`sub-${itemId}`).textContent = `¥${(merchQty[itemId] * price).toLocaleString()}`;
+  calcMerchTotal();
+}
+
+function calcMerchTotal() {
+  let total = 0;
+  merchItems.forEach(item => { total += (merchQty[item.id] || 0) * item.price; });
+  document.getElementById('merch-total').textContent = `¥${total.toLocaleString()}`;
+}
+
+async function saveMerchSales() {
+  const liveId = document.getElementById('merch-live-select').value;
+  if (!liveId) { alert('ライブを選択してください'); return; }
+  const items = Object.entries(merchQty).map(([item_id, quantity]) => ({ item_id: parseInt(item_id), quantity }));
+  try {
+    await api('POST', '/merch/sales', { live_id: parseInt(liveId), items });
+    alert('保存しました！');
+    await loadMerchHistory();
+  } catch (e) { alert('保存に失敗しました: ' + e.message); }
+}
+
+async function loadMerchHistory() {
+  const el = document.getElementById('merch-history');
+  const sales = await api('GET', '/merch/sales');
+
+  // ライブ別に集計
+  const byLive = {};
+  sales.forEach(s => {
+    const key = s.live_id;
+    if (!byLive[key]) byLive[key] = { live: s.lives, total: 0, details: [] };
+    byLive[key].total += s.quantity * s.merch_items.price;
+    byLive[key].details.push(`${s.merch_items.name}×${s.quantity}`);
+  });
+
+  const entries = Object.values(byLive).sort((a, b) => b.live.date.localeCompare(a.live.date));
+  if (entries.length === 0) {
+    el.innerHTML = '<p style="color:#aaa;text-align:center;padding:16px">売上データがありません</p>';
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="merch-history-row merch-history-head">
+      <span>ライブ</span><span style="text-align:right">売上合計</span><span style="text-align:right">日付</span>
+    </div>
+    ${entries.map(e => `
+    <div class="merch-history-row" style="cursor:pointer" onclick="selectHistoryLive(${e.live.id || ''})" title="${e.details.join(', ')}">
+      <span>${e.live.name || e.live.type}</span>
+      <span style="text-align:right;font-weight:700;color:#00B900">¥${e.total.toLocaleString()}</span>
+      <span style="text-align:right;color:#888;font-size:12px">${e.live.date}</span>
+    </div>`).join('')}`;
+}
+
+function selectHistoryLive(liveId) {
+  const sel = document.getElementById('merch-live-select');
+  sel.value = liveId;
+  loadMerchSales();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ---- Merch Item Management ----
+async function openMerchItems() {
+  document.getElementById('new-item-name').value = '';
+  document.getElementById('new-item-price').value = '';
+  renderMerchItemsManage();
+  open_('merch-items-overlay');
+}
+
+function renderMerchItemsManage() {
+  const el = document.getElementById('merch-items-manage-list');
+  if (merchItems.length === 0) {
+    el.innerHTML = '<p style="color:#aaa;font-size:13px">登録済みのメニューはありません</p>';
+    return;
+  }
+  el.innerHTML = '';
+  merchItems.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'merch-item-manage';
+    div.innerHTML = `
+      <span style="flex:1;font-size:14px">${item.name}</span>
+      <span style="width:80px;text-align:right;color:#888;font-size:13px">¥${item.price.toLocaleString()}</span>
+      <button class="sl-btn" onclick="editMerchItem(${item.id},'${item.name}',${item.price})">編集</button>
+      <button class="sl-btn rm" onclick="deleteMerchItem(${item.id})">削除</button>`;
+    el.appendChild(div);
+  });
+}
+
+async function addMerchItem() {
+  const name = document.getElementById('new-item-name').value.trim();
+  const price = parseInt(document.getElementById('new-item-price').value);
+  if (!name) { alert('商品名を入力してください'); return; }
+  if (isNaN(price) || price < 0) { alert('価格を入力してください'); return; }
+  try {
+    await api('POST', '/merch/items', { name, price });
+    merchItems = await api('GET', '/merch/items');
+    document.getElementById('new-item-name').value = '';
+    document.getElementById('new-item-price').value = '';
+    renderMerchItemsManage();
+    renderMerchItemInputs();
+  } catch (e) { alert('追加に失敗しました: ' + e.message); }
+}
+
+async function editMerchItem(id, currentName, currentPrice) {
+  const name = prompt('商品名', currentName);
+  if (name === null) return;
+  const priceStr = prompt('価格', currentPrice);
+  if (priceStr === null) return;
+  const price = parseInt(priceStr);
+  if (!name.trim() || isNaN(price)) { alert('入力が無効です'); return; }
+  try {
+    await api('PUT', `/merch/items/${id}`, { name: name.trim(), price });
+    merchItems = await api('GET', '/merch/items');
+    renderMerchItemsManage();
+    renderMerchItemInputs();
+  } catch (e) { alert('更新に失敗しました: ' + e.message); }
+}
+
+async function deleteMerchItem(id) {
+  if (!confirm('このメニューを削除しますか？\n（関連する売上データも削除されます）')) return;
+  try {
+    await api('DELETE', `/merch/items/${id}`);
+    merchItems = await api('GET', '/merch/items');
+    renderMerchItemsManage();
+    renderMerchItemInputs();
+  } catch (e) { alert('削除に失敗しました: ' + e.message); }
 }
 
 // ---- Flyer Upload ----

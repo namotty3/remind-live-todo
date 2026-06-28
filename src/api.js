@@ -141,4 +141,70 @@ router.delete('/events/:id', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- Merch Items ----
+
+router.get('/merch/items', auth, async (_req, res) => {
+  const { data, error } = await supabase.from('merch_items').select('*').order('id');
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+router.post('/merch/items', auth, async (req, res) => {
+  const { name, price } = req.body;
+  const { data, error } = await supabase.from('merch_items').insert({ name, price }).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+router.put('/merch/items/:id', auth, async (req, res) => {
+  const { name, price, is_active } = req.body;
+  const fields = {};
+  if (name !== undefined) fields.name = name;
+  if (price !== undefined) fields.price = price;
+  if (is_active !== undefined) fields.is_active = is_active;
+  const { data, error } = await supabase.from('merch_items').update(fields).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+router.delete('/merch/items/:id', auth, async (req, res) => {
+  const { error } = await supabase.from('merch_items').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
+// ---- Merch Sales ----
+
+router.get('/merch/sales', auth, async (_req, res) => {
+  const { data, error } = await supabase
+    .from('merch_sales')
+    .select('*, merch_items(name, price), lives(date, name, type)')
+    .order('live_id');
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+router.get('/merch/sales/:live_id', auth, async (req, res) => {
+  const { data, error } = await supabase
+    .from('merch_sales')
+    .select('*, merch_items(name, price)')
+    .eq('live_id', req.params.live_id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+router.post('/merch/sales', auth, async (req, res) => {
+  const { live_id, items } = req.body; // items: [{item_id, quantity}]
+  if (!live_id || !Array.isArray(items)) return res.status(400).json({ error: 'Invalid body' });
+
+  // 一度削除してから再挿入（シンプルな上書き）
+  await supabase.from('merch_sales').delete().eq('live_id', live_id);
+  const rows = items.filter(i => i.quantity > 0).map(i => ({ live_id, item_id: i.item_id, quantity: i.quantity }));
+  if (rows.length > 0) {
+    const { error } = await supabase.from('merch_sales').insert(rows);
+    if (error) return res.status(500).json({ error: error.message });
+  }
+  res.json({ ok: true });
+});
+
 module.exports = router;
