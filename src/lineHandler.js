@@ -626,23 +626,24 @@ async function handleAddLiveText(text, userId, reply) {
 async function handleListLives(userId, reply) {
   const today = todayJST();
 
-  // 今日以降のライブを最大10件取得（カルーセル上限）
+  // 今日以降のライブを最大5件取得（LINEの返信メッセージ上限）
   const { data: upcoming } = await supabase
     .from('lives').select('*').eq('user_id', sharedId(userId))
-    .gte('date', today).order('date').limit(10);
+    .gte('date', today).order('date').limit(5);
 
-  // 0件の場合は直近の過去ライブを最大10件表示
+  // 0件の場合は直近の過去ライブを最大5件表示
   const lives = (upcoming && upcoming.length > 0)
     ? upcoming
     : (await supabase.from('lives').select('*').eq('user_id', sharedId(userId))
-        .lt('date', today).order('date', { ascending: false }).limit(10)).data;
+        .lt('date', today).order('date', { ascending: false }).limit(5)).data;
 
   if (!lives || lives.length === 0) {
     return reply({ type: 'text', text: '📭 登録済みライブはありません。', quickReply: { items: [{ type: 'action', action: { type: 'message', label: '➕ ライブ追加', text: 'ライブ追加' } }] } });
   }
 
   const { data: tasks } = await supabase.from('tasks').select('*').in('live_id', lives.map((l) => l.id));
-  return reply(buildLiveCarousel(lives, tasks || [], today));
+  const messages = lives.map((l) => buildTaskFlex(l, (tasks || []).filter((t) => t.live_id === l.id)));
+  return reply(messages);
 }
 
 async function handleShowTasks(liveId, userId, reply) {
