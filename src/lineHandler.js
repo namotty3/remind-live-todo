@@ -21,14 +21,14 @@ async function handleMessage(event, client) {
   const reply = (messages) =>
     client.replyMessage({ replyToken, messages: Array.isArray(messages) ? messages : [messages] });
 
-  if (text === 'ライブ追加' || text === '追加')    return reply(buildTypeSelection());
-  if (text === 'ライブ一覧' || text === '一覧')    return handleListLives(userId, reply);
-  if (/^タスク \d+$/.test(text))                   return handleShowTasks(parseInt(text.split(' ')[1]), userId, reply);
-  if (/^チェック解除 \d+$/.test(text))             return handleUncheck(parseInt(text.split(' ')[1]), userId, reply);
-  if (/^チェック \d+$/.test(text))                 return handleCheck(parseInt(text.split(' ')[1]), userId, reply);
-  if (/^ライブ削除 \d+$/.test(text))               return handleDeleteLive(parseInt(text.split(' ')[1]), userId, reply);
-  if (text === 'ヘルプ' || text === 'help')        return reply({ type: 'text', text: helpText() });
-  if (text.startsWith('ライブ追加 '))              return handleAddLiveText(text, userId, reply);
+  if (text === 'ライブ追加' || text === '追加')          return reply(buildTypeSelection());
+  if (text === 'ライブ一覧' || text === '一覧')          return handleListLives(userId, reply);
+  if (text === 'ライブ削除' || text === '削除')          return handleListLivesForDelete(userId, reply);
+  if (/^タスク \d+$/.test(text))                         return handleShowTasks(parseInt(text.split(' ')[1]), userId, reply);
+  if (/^チェック解除 \d+$/.test(text))                   return handleUncheck(parseInt(text.split(' ')[1]), userId, reply);
+  if (/^チェック \d+$/.test(text))                       return handleCheck(parseInt(text.split(' ')[1]), userId, reply);
+  if (text === 'ヘルプ' || text === 'help')              return reply({ type: 'text', text: helpText() });
+  if (text.startsWith('ライブ追加 '))                    return handleAddLiveText(text, userId, reply);
 }
 
 // ---- ポストバックイベント ----
@@ -50,6 +50,20 @@ async function handlePostback(event, client) {
     const liveType = decodeURIComponent(params.get('type'));
     const dateStr = event.postback.params.date;
     return handleAddLive(dateStr, liveType, userId, reply);
+  }
+
+  if (action === 'cancel') {
+    return reply({ type: 'text', text: 'キャンセルしました。' });
+  }
+
+  if (action === 'confirm_delete') {
+    const liveId = parseInt(params.get('live_id'));
+    return handleConfirmDelete(liveId, userId, reply);
+  }
+
+  if (action === 'delete_live') {
+    const liveId = parseInt(params.get('live_id'));
+    return handleDeleteLive(liveId, userId, reply);
   }
 }
 
@@ -217,7 +231,7 @@ function buildLiveCarousel(lives, tasks, today) {
           },
           {
             type: 'button',
-            action: { type: 'message', label: '🗑️ このライブを削除', text: `ライブ削除 ${l.id}` },
+            action: { type: 'postback', label: '🗑️ このライブを削除', data: `action=confirm_delete&live_id=${l.id}`, displayText: '削除確認' },
             style: 'secondary',
             margin: 'sm'
           }
@@ -347,6 +361,117 @@ async function handleUncheck(taskId, userId, reply) {
   ]);
 }
 
+async function handleListLivesForDelete(userId, reply) {
+  const today = todayJST();
+  const { data: lives } = await supabase
+    .from('lives')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date');
+
+  if (!lives || lives.length === 0) {
+    return reply({ type: 'text', text: '📭 登録済みライブはありません。' });
+  }
+
+  const liveIds = lives.map((l) => l.id);
+  const { data: tasks } = await supabase.from('tasks').select('*').in('live_id', liveIds);
+
+  const bubbles = lives.map((l) => {
+    const liveTasks = (tasks || []).filter((t) => t.live_id === l.id);
+    const pending = liveTasks.filter((t) => !t.is_done).length;
+    const hasOverdue = liveTasks.some((t) => !t.is_done && t.deadline < today);
+
+    return {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: hasOverdue ? '#FF4444' : '#00B900',
+        paddingAll: 'lg',
+        contents: [
+          { type: 'text', text: formatDate(l.date), color: '#ffffff', weight: 'bold', size: 'lg' },
+          { type: 'text', text: `${l.type}　未完了: ${pending}件`, color: '#ffffff', size: 'sm' }
+        ]
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'button',
+            action: { type: 'postback', label: '🗑️ このライブを削除', data: `action=confirm_delete&live_id=${l.id}`, displayText: '削除確認' },
+            style: 'secondary',
+            color: '#FF4444'
+          }
+        ]
+      }
+    };
+  });
+
+  return reply({
+    type: 'flex',
+    altText: '削除するライブを選んでください',
+    contents: { type: 'carousel', contents: bubbles }
+  });
+}
+
+async function handleConfirmDelete(liveId, userId, reply) {
+  const { data: live } = await supabase
+    .from('lives')
+    .select('*')
+    .eq('id', liveId)
+    .eq('user_id', userId)
+    .single();
+
+  if (!live) return reply({ type: 'text', text: '❌ ライブが見つかりません。' });
+
+  return reply({
+    type: 'flex',
+    altText: '削除の確認',
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#FF4444',
+        paddingAll: 'lg',
+        contents: [
+          { type: 'text', text: '🗑️ 削除の確認', color: '#ffffff', weight: 'bold' }
+        ]
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'md',
+        contents: [
+          { type: 'text', text: `${formatDate(live.date)}（${live.type}）`, wrap: true, weight: 'bold' },
+          { type: 'text', text: 'このライブとタスクをすべて削除しますか？', wrap: true, color: '#666666', size: 'sm' }
+        ]
+      },
+      footer: {
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'sm',
+        contents: [
+          {
+            type: 'button',
+            action: { type: 'postback', label: 'キャンセル', data: 'action=cancel', displayText: 'キャンセル' },
+            style: 'secondary',
+            flex: 1
+          },
+          {
+            type: 'button',
+            action: { type: 'postback', label: '削除する', data: `action=delete_live&live_id=${liveId}`, displayText: '削除しました' },
+            style: 'primary',
+            color: '#FF4444',
+            flex: 1
+          }
+        ]
+      }
+    }
+  });
+}
+
 async function handleDeleteLive(liveId, userId, reply) {
   const { data: live } = await supabase
     .from('lives')
@@ -366,7 +491,8 @@ function helpText() {
   return `🎵 バンドライブToDo
 
 「ライブ追加」→ 種別をタップ → 日付をカレンダーで選択
-「ライブ一覧」→ カードで一覧表示
+「ライブ一覧」→ カードで一覧表示・タスク確認
+「ライブ削除」→ 削除したいライブを選択・確認後に削除
 カードの「タスクを見る」→ 各タスクにDoneボタン
 
 ⚠️ 期限切れ未完了タスクは2日ごとに通知`;
