@@ -44,7 +44,13 @@ async function handleMessage(event, client) {
 
   // セッション中の入力を最優先で処理
   const session = await getSession(userId);
-  if (session) return handleSessionInput(session, text, userId, reply);
+  if (session) {
+    if (text === 'キャンセル') {
+      await clearSession(userId);
+      return reply({ type: 'text', text: 'キャンセルしました。' });
+    }
+    return handleSessionInput(session, text, userId, reply);
+  }
 
   if (text === 'メニュー' || text === 'menu')            return reply(buildMenu());
   if (text === 'ライブ追加' || text === '追加')          return reply(buildTypeSelection());
@@ -80,6 +86,20 @@ async function handleSessionInput(session, text, chatId, reply) {
     await clearSession(chatId);
     return handleAddLive(date, type, name, venue, chatId, reply);
   }
+
+  if (session.step === 'editing_name') {
+    const { live_id } = session.data;
+    const newName = (isSkip || text === 'クリア') ? null : text;
+    await clearSession(chatId);
+    return handleUpdateLiveField(live_id, { name: newName }, userId, reply);
+  }
+
+  if (session.step === 'editing_venue') {
+    const { live_id } = session.data;
+    const newVenue = (isSkip || text === 'クリア') ? null : text;
+    await clearSession(chatId);
+    return handleUpdateLiveField(live_id, { venue: newVenue }, userId, reply);
+  }
 }
 
 // ---- ポストバックイベント ----
@@ -113,6 +133,52 @@ async function handlePostback(event, client) {
   if (action === 'cancel') {
     await clearSession(userId);
     return reply({ type: 'text', text: 'キャンセルしました。' });
+  }
+
+  if (action === 'edit_live') {
+    const liveId = parseInt(params.get('live_id'));
+    return handleEditLive(liveId, userId, reply);
+  }
+
+  if (action === 'edit_date') {
+    const liveId = parseInt(params.get('live_id'));
+    return reply(buildDatePickerForEdit(liveId));
+  }
+
+  if (action === 'set_edit_date') {
+    const liveId = parseInt(params.get('live_id'));
+    const dateStr = event.postback.params.date;
+    return handleUpdateLiveField(liveId, { date: dateStr }, userId, reply);
+  }
+
+  if (action === 'edit_name') {
+    const liveId = parseInt(params.get('live_id'));
+    await setSession(userId, 'editing_name', { live_id: liveId });
+    return reply({
+      type: 'text',
+      text: '🎤 新しいライブ名を入力してください\n（「クリア」で削除）',
+      quickReply: {
+        items: [
+          { type: 'action', action: { type: 'message', label: 'クリア', text: 'クリア' } },
+          { type: 'action', action: { type: 'message', label: 'キャンセル', text: 'キャンセル' } }
+        ]
+      }
+    });
+  }
+
+  if (action === 'edit_venue') {
+    const liveId = parseInt(params.get('live_id'));
+    await setSession(userId, 'editing_venue', { live_id: liveId });
+    return reply({
+      type: 'text',
+      text: '📍 新しい場所を入力してください\n（「クリア」で削除）',
+      quickReply: {
+        items: [
+          { type: 'action', action: { type: 'message', label: 'クリア', text: 'クリア' } },
+          { type: 'action', action: { type: 'message', label: 'キャンセル', text: 'キャンセル' } }
+        ]
+      }
+    });
   }
 
   if (action === 'confirm_delete') {
@@ -291,6 +357,7 @@ function buildLiveCarousel(lives, tasks, today) {
         spacing: 'sm',
         contents: [
           { type: 'button', action: { type: 'message', label: '📋 タスクを見る', text: `タスク ${l.id}` }, style: 'primary', color: '#00B900' },
+          { type: 'button', action: { type: 'postback', label: '✏️ ライブを編集', data: `action=edit_live&live_id=${l.id}`, displayText: 'ライブを編集' }, style: 'secondary', margin: 'sm' },
           { type: 'button', action: { type: 'postback', label: '🗑️ このライブを削除', data: `action=confirm_delete&live_id=${l.id}`, displayText: '削除確認' }, style: 'secondary', margin: 'sm' }
         ]
       }
@@ -298,6 +365,60 @@ function buildLiveCarousel(lives, tasks, today) {
   });
 
   return { type: 'flex', altText: 'ライブ一覧', contents: { type: 'carousel', contents: bubbles } };
+}
+
+function buildDatePickerForEdit(liveId) {
+  const today = todayJST();
+  return {
+    type: 'template',
+    altText: '新しい日付を選んでください',
+    template: {
+      type: 'buttons',
+      text: '📅 新しいライブ日付を選んでください',
+      actions: [
+        {
+          type: 'datetimepicker',
+          label: '📅 カレンダーで選ぶ',
+          data: `action=set_edit_date&live_id=${liveId}`,
+          mode: 'date',
+          initial: today,
+          min: '2020-01-01',
+          max: '2030-12-31'
+        }
+      ]
+    }
+  };
+}
+
+function buildEditMenu(live) {
+  const label = live.name || formatDate(live.date);
+  return {
+    type: 'flex',
+    altText: 'ライブを編集',
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#4A90D9',
+        paddingAll: 'lg',
+        contents: [
+          { type: 'text', text: '✏️ ライブを編集', color: '#ffffff', weight: 'bold', size: 'lg' },
+          { type: 'text', text: label, color: '#ddeeff', size: 'sm', wrap: true }
+        ]
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        contents: [
+          { type: 'button', action: { type: 'postback', label: '📅 日付を変更', data: `action=edit_date&live_id=${live.id}`, displayText: '日付を変更' }, style: 'primary', color: '#4A90D9' },
+          { type: 'button', action: { type: 'postback', label: '🎤 ライブ名を変更', data: `action=edit_name&live_id=${live.id}`, displayText: 'ライブ名を変更' }, style: 'secondary', margin: 'sm' },
+          { type: 'button', action: { type: 'postback', label: '📍 場所を変更', data: `action=edit_venue&live_id=${live.id}`, displayText: '場所を変更' }, style: 'secondary', margin: 'sm' }
+        ]
+      }
+    }
+  };
 }
 
 // ---- コアハンドラー ----
@@ -393,6 +514,28 @@ async function handleUncheck(taskId, userId, reply) {
     { type: 'text', text: `↩️ 「${task.name}」の完了を取り消しました。` },
     buildTaskFlex(live, tasks || [])
   ]);
+}
+
+async function handleEditLive(liveId, userId, reply) {
+  const { data: live } = await supabase.from('lives').select('*').eq('id', liveId).eq('user_id', userId).single();
+  if (!live) return reply({ type: 'text', text: '❌ ライブが見つかりません。' });
+  return reply(buildEditMenu(live));
+}
+
+async function handleUpdateLiveField(liveId, fields, userId, reply) {
+  const { data: live, error } = await supabase
+    .from('lives')
+    .update(fields)
+    .eq('id', liveId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error || !live) return reply({ type: 'text', text: '❌ 更新に失敗しました。' });
+
+  const label = live.name || formatDate(live.date);
+  const fieldLabel = fields.date ? '日付' : fields.name !== undefined ? 'ライブ名' : '場所';
+  return reply({ type: 'text', text: `✅ 「${label}」の${fieldLabel}を更新しました！` });
 }
 
 async function handleListLivesForDelete(userId, reply) {
