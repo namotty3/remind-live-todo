@@ -620,7 +620,17 @@ async function handleAddLiveText(text, userId, reply) {
 
 async function handleListLives(userId, reply) {
   const today = todayJST();
-  const { data: lives } = await supabase.from('lives').select('*').eq('user_id', userId).order('date');
+
+  // 今日以降のライブを最大10件取得（カルーセル上限）
+  const { data: upcoming } = await supabase
+    .from('lives').select('*').eq('user_id', userId)
+    .gte('date', today).order('date').limit(10);
+
+  // 0件の場合は直近の過去ライブを最大10件表示
+  const lives = (upcoming && upcoming.length > 0)
+    ? upcoming
+    : (await supabase.from('lives').select('*').eq('user_id', userId)
+        .lt('date', today).order('date', { ascending: false }).limit(10)).data;
 
   if (!lives || lives.length === 0) {
     return reply({ type: 'text', text: '📭 登録済みライブはありません。', quickReply: { items: [{ type: 'action', action: { type: 'message', label: '➕ ライブ追加', text: 'ライブ追加' } }] } });
@@ -745,7 +755,7 @@ async function handleListEvents(userId, reply) {
 
 async function handleListLivesForDelete(userId, reply) {
   const today = todayJST();
-  const { data: lives } = await supabase.from('lives').select('*').eq('user_id', userId).order('date');
+  const { data: lives } = await supabase.from('lives').select('*').eq('user_id', userId).order('date').limit(10);
   if (!lives || lives.length === 0) return reply({ type: 'text', text: '📭 登録済みライブはありません。' });
 
   const { data: tasks } = await supabase.from('tasks').select('*').in('live_id', lives.map((l) => l.id));
