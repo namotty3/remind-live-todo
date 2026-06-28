@@ -28,6 +28,7 @@ async function handleMessage(event, client) {
   const reply = (messages) =>
     client.replyMessage({ replyToken, messages: Array.isArray(messages) ? messages : [messages] });
 
+  if (text === 'メニュー' || text === 'menu')            return reply(buildMenu());
   if (text === 'ライブ追加' || text === '追加')          return reply(buildTypeSelection());
   if (text === 'ライブ一覧' || text === '一覧')          return handleListLives(userId, reply);
   if (text === 'ライブ削除' || text === '削除')          return handleListLivesForDelete(userId, reply);
@@ -75,6 +76,43 @@ async function handlePostback(event, client) {
 }
 
 // ---- GUIメッセージビルダー ----
+
+function buildMenu() {
+  const buttons = [
+    { label: '➕ ライブ追加', text: 'ライブ追加', color: '#00B900' },
+    { label: '📋 ライブ一覧', text: 'ライブ一覧', color: '#00B900' },
+    { label: '🗑️ ライブ削除', text: 'ライブ削除', color: '#888888' },
+    { label: '❓ ヘルプ',     text: 'ヘルプ',     color: '#888888' },
+  ];
+
+  return {
+    type: 'flex',
+    altText: 'メニュー',
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#00B900',
+        paddingAll: 'lg',
+        contents: [
+          { type: 'text', text: '🎵 バンドライブToDo', color: '#ffffff', weight: 'bold', size: 'lg' }
+        ]
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        contents: buttons.map((b) => ({
+          type: 'button',
+          action: { type: 'message', label: b.label, text: b.text },
+          style: 'primary',
+          color: b.color
+        }))
+      }
+    }
+  };
+}
 
 function buildTypeSelection() {
   return {
@@ -497,6 +535,7 @@ async function handleDeleteLive(liveId, userId, reply) {
 function helpText() {
   return `🎵 バンドライブToDo
 
+「メニュー」→ ボタン一覧を表示
 「ライブ追加」→ 種別をタップ → 日付をカレンダーで選択
 「ライブ一覧」→ カードで一覧表示・タスク確認
 「ライブ削除」→ 削除したいライブを選択・確認後に削除
