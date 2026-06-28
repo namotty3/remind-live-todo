@@ -56,6 +56,8 @@ async function handleMessage(event, client) {
   if (text === 'ライブ追加' || text === '追加')          return reply(buildTypeSelection());
   if (text === 'ライブ一覧' || text === '一覧')          return handleListLives(userId, reply);
   if (text === 'ライブ削除' || text === '削除')          return handleListLivesForDelete(userId, reply);
+  if (text === '予定追加')                               return handleStartAddEvent(userId, reply);
+  if (text === '予定一覧')                               return handleListEvents(userId, reply);
   if (/^タスク \d+$/.test(text))                         return handleShowTasks(parseInt(text.split(' ')[1]), userId, reply);
   if (/^チェック解除 \d+$/.test(text))                   return handleUncheck(parseInt(text.split(' ')[1]), userId, reply);
   if (/^チェック \d+$/.test(text))                       return handleCheck(parseInt(text.split(' ')[1]), userId, reply);
@@ -86,6 +88,18 @@ async function handleSessionInput(session, text, chatId, reply) {
     const { date, type, name } = session.data;
     await clearSession(chatId);
     return handleAddLive(date, type, name, venue, chatId, reply);
+  }
+
+  if (session.step === 'event_title') {
+    await setSession(chatId, 'event_date', { title: text });
+    return reply(buildEventDatePicker());
+  }
+
+  if (session.step === 'event_location') {
+    const location = isSkip ? null : text;
+    const { title, date } = session.data;
+    await clearSession(chatId);
+    return handleAddEvent(title, date, location, chatId, reply);
   }
 
   if (session.step === 'editing_name') {
@@ -182,6 +196,25 @@ async function handlePostback(event, client) {
     });
   }
 
+  if (action === 'set_event_date') {
+    const dateStr = event.postback.params.date;
+    const session = await getSession(userId);
+    if (!session || session.step !== 'event_date') {
+      return reply({ type: 'text', text: '❌ もう一度「予定追加」から始めてください。' });
+    }
+    await setSession(userId, 'event_location', { title: session.data.title, date: dateStr });
+    return reply({
+      type: 'text',
+      text: `📅 ${formatDate(dateStr)}\n\n📍 場所を入力してください（任意）`,
+      quickReply: {
+        items: [
+          { type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } },
+          { type: 'action', action: { type: 'message', label: 'キャンセル', text: 'キャンセル' } }
+        ]
+      }
+    });
+  }
+
   if (action === 'confirm_delete') {
     const liveId = parseInt(params.get('live_id'));
     return handleConfirmDelete(liveId, userId, reply);
@@ -196,12 +229,15 @@ async function handlePostback(event, client) {
 // ---- GUIメッセージビルダー ----
 
 function buildMenu() {
-  const buttons = [
-    { label: '➕ ライブ追加', text: 'ライブ追加', color: '#00B900' },
-    { label: '📋 ライブ一覧', text: 'ライブ一覧', color: '#00B900' },
-    { label: '🗑️ ライブ削除', text: 'ライブ削除', color: '#888888' },
-    { label: '❓ ヘルプ',     text: 'ヘルプ',     color: '#888888' },
-  ];
+  const makeBtn = (label, text, color) => ({
+    type: 'button',
+    action: { type: 'message', label, text },
+    style: 'primary',
+    color
+  });
+  const separator = (title) => ({
+    type: 'text', text: title, size: 'xs', color: '#aaaaaa', margin: 'md'
+  });
 
   return {
     type: 'flex',
@@ -221,12 +257,17 @@ function buildMenu() {
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
-        contents: buttons.map((b) => ({
-          type: 'button',
-          action: { type: 'message', label: b.label, text: b.text },
-          style: 'primary',
-          color: b.color
-        }))
+        contents: [
+          separator('── ライブ ──'),
+          makeBtn('➕ ライブ追加', 'ライブ追加', '#00B900'),
+          makeBtn('📋 ライブ一覧', 'ライブ一覧', '#00B900'),
+          makeBtn('🗑️ ライブ削除', 'ライブ削除', '#888888'),
+          separator('── 予定 ──'),
+          makeBtn('➕ 予定追加',   '予定追加',   '#4A90D9'),
+          makeBtn('📋 予定一覧',   '予定一覧',   '#4A90D9'),
+          separator('── その他 ──'),
+          makeBtn('❓ ヘルプ',     'ヘルプ',     '#888888'),
+        ]
       }
     }
   };
@@ -366,6 +407,27 @@ function buildLiveCarousel(lives, tasks, today) {
   });
 
   return { type: 'flex', altText: 'ライブ一覧', contents: { type: 'carousel', contents: bubbles } };
+}
+
+function buildEventDatePicker() {
+  const today = todayJST();
+  return {
+    type: 'template',
+    altText: '予定の日付を選んでください',
+    template: {
+      type: 'buttons',
+      text: '📅 予定の日付を選んでください',
+      actions: [{
+        type: 'datetimepicker',
+        label: '📅 カレンダーで選ぶ',
+        data: 'action=set_event_date',
+        mode: 'date',
+        initial: today,
+        min: '2020-01-01',
+        max: '2030-12-31'
+      }]
+    }
+  };
 }
 
 function buildDatePickerForEdit(liveId) {
@@ -537,6 +599,46 @@ async function handleUpdateLiveField(liveId, fields, userId, reply) {
   const label = live.name || formatDate(live.date);
   const fieldLabel = fields.date ? '日付' : fields.name !== undefined ? 'ライブ名' : '場所';
   return reply({ type: 'text', text: `✅ 「${label}」の${fieldLabel}を更新しました！` });
+}
+
+async function handleStartAddEvent(userId, reply) {
+  await setSession(userId, 'event_title', {});
+  return reply({ type: 'text', text: '📝 予定のタイトルを入力してください' });
+}
+
+async function handleAddEvent(title, dateStr, location, userId, reply) {
+  const { error } = await supabase
+    .from('events')
+    .insert({ title, date: dateStr, location: location || null, user_id: userId });
+
+  if (error) return reply({ type: 'text', text: '❌ 登録に失敗しました。' });
+
+  let text = `✅ 予定を登録しました！\n\n📅 ${formatDate(dateStr)}\n🗓️ ${title}`;
+  if (location) text += `\n📍 ${location}`;
+  return reply({ type: 'text', text });
+}
+
+async function handleListEvents(userId, reply) {
+  const today = todayJST();
+  const { data: events } = await supabase
+    .from('events')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('date', today)
+    .order('date')
+    .limit(10);
+
+  if (!events || events.length === 0) {
+    return reply({ type: 'text', text: '📭 今後の予定はありません。\n「予定追加」で登録できます。' });
+  }
+
+  let text = `📅 今後の予定（${events.length}件）\n\n`;
+  for (const ev of events) {
+    text += `${formatDate(ev.date)}　${ev.title}`;
+    if (ev.location) text += `\n　📍 ${ev.location}`;
+    text += '\n\n';
+  }
+  return reply({ type: 'text', text: text.trim() });
 }
 
 async function handleListLivesForDelete(userId, reply) {

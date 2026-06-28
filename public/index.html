@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🎵 バンドライブカレンダー</title>
+  <title>🎵 バンドポータル</title>
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
   <style>
@@ -28,21 +28,16 @@
     .error-msg { color: #FF4444; font-size: 14px; min-height: 20px; }
 
     /* ---- App ---- */
-    #app { display: none; max-width: 900px; margin: 0 auto; padding: 16px; }
-    #app header {
-      display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
-    }
+    #app { display: none; max-width: 960px; margin: 0 auto; padding: 16px; }
+    #app header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
     #app header h1 { font-size: 20px; flex: 1; }
     #app header button {
       padding: 8px 14px; background: #888; color: #fff; border: none;
       border-radius: 8px; font-size: 13px; cursor: pointer;
     }
-    #calendar-wrap { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
 
-    /* ---- Portal Links ---- */
-    #portal-links {
-      display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
-    }
+    /* ---- Portal links ---- */
+    #portal-links { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
     .portal-card {
       display: flex; align-items: center; gap: 14px;
       background: #fff; border-radius: 14px; padding: 16px 20px;
@@ -57,11 +52,9 @@
     .portal-title { font-size: 15px; font-weight: 700; }
     .portal-sub { font-size: 12px; color: #999; margin-top: 2px; }
 
-    /* ---- Legend ---- */
-    .legend {
-      display: flex; gap: 14px; margin-bottom: 12px; flex-wrap: wrap;
-      font-size: 13px; color: #555;
-    }
+    /* ---- Calendar ---- */
+    #calendar-wrap { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .legend { display: flex; gap: 14px; margin-bottom: 12px; flex-wrap: wrap; font-size: 13px; color: #555; }
     .legend-item { display: flex; align-items: center; gap: 6px; }
     .dot { width: 12px; height: 12px; border-radius: 50%; }
 
@@ -89,25 +82,31 @@
       border-radius: 8px; font-size: 15px; outline: none;
     }
     .modal-body input:focus, .modal-body select:focus { border-color: #00B900; }
-    .modal-foot {
-      padding: 14px 20px; display: flex; gap: 8px; border-top: 1px solid #eee;
-    }
+    .modal-foot { padding: 14px 20px; display: flex; gap: 8px; border-top: 1px solid #eee; }
     .btn { padding: 12px; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; flex: 1; font-weight: 500; }
     .btn-green  { background: #00B900; color: #fff; }
     .btn-blue   { background: #4A90D9; color: #fff; }
     .btn-red    { background: #FF4444; color: #fff; }
     .btn-gray   { background: #f0f0f0; color: #333; }
 
-    /* ---- Live meta ---- */
+    /* ---- Choice modal ---- */
+    #choice-modal .modal { max-width: 320px; }
+    .choice-btns { display: flex; flex-direction: column; gap: 10px; padding: 20px; }
+    .choice-btn {
+      padding: 16px; border: 2px solid #eee; border-radius: 12px; background: #fff;
+      cursor: pointer; text-align: left; font-size: 15px; display: flex; align-items: center; gap: 12px;
+      transition: border-color .15s;
+    }
+    .choice-btn:hover { border-color: #00B900; }
+    .choice-btn .ci { font-size: 24px; }
+    .choice-btn .ct { font-weight: 700; }
+    .choice-btn .cs { font-size: 12px; color: #999; }
+
+    /* ---- Live meta / Tasks ---- */
     .live-meta { margin-bottom: 16px; }
     .live-meta p { font-size: 14px; color: #555; margin-top: 6px; }
     .section-title { font-size: 14px; font-weight: 700; color: #333; margin-bottom: 8px; }
-
-    /* ---- Tasks ---- */
-    .task-item {
-      display: flex; align-items: flex-start; gap: 10px;
-      padding: 10px 0; border-bottom: 1px solid #f0f0f0;
-    }
+    .task-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
     .task-item:last-child { border-bottom: none; }
     .task-item input[type="checkbox"] { width: 18px; height: 18px; margin-top: 2px; cursor: pointer; accent-color: #00B900; flex-shrink: 0; }
     .task-info { flex: 1; }
@@ -122,7 +121,7 @@
 
 <!-- Login -->
 <div id="login-screen">
-  <h1>🎵 バンドライブカレンダー</h1>
+  <img src="/logo/logo.png" alt="ロゴ" style="max-width:200px;margin-bottom:8px;">
   <input type="password" id="pw" placeholder="パスワードを入力" onkeydown="if(event.key==='Enter')doLogin()">
   <button class="login-btn" onclick="doLogin()">ログイン</button>
   <p class="error-msg" id="login-err"></p>
@@ -131,12 +130,14 @@
 <!-- App -->
 <div id="app">
   <header>
-    <h1>🎵 バンドライブカレンダー</h1>
+    <img src="/logo/logo.png" alt="ロゴ" style="height:40px;object-fit:contain;">
+    <div style="flex:1"></div>
     <button onclick="doLogout()">ログアウト</button>
   </header>
-  <!-- ポータルリンク -->
+
+  <!-- Portal links -->
   <div id="portal-links">
-    <a class="portal-card" href="#" target="_blank" data-soon="true">
+    <a class="portal-card" href="#" data-soon="true">
       <div class="portal-icon">🛒</div>
       <div class="portal-info">
         <div class="portal-title">物販売り上げシステム</div>
@@ -152,85 +153,168 @@
     </a>
   </div>
 
+  <!-- Calendar -->
   <div id="calendar-wrap">
     <div class="legend">
-      <span class="legend-item"><span class="dot" style="background:#00B900"></span>問題なし</span>
-      <span class="legend-item"><span class="dot" style="background:#FF4444"></span>期限切れあり</span>
-      <span class="legend-item"><span class="dot" style="background:#888"></span>完了</span>
+      <span class="legend-item"><span class="dot" style="background:#00B900"></span>ライブ（正常）</span>
+      <span class="legend-item"><span class="dot" style="background:#FF4444"></span>ライブ（期限切れ）</span>
+      <span class="legend-item"><span class="dot" style="background:#888"></span>ライブ（完了）</span>
+      <span class="legend-item"><span class="dot" style="background:#4A90D9"></span>予定</span>
     </div>
     <div id="calendar"></div>
   </div>
 </div>
 
-<!-- Add modal -->
-<div class="overlay" id="add-overlay">
+<!-- 種別選択 -->
+<div class="overlay" id="choice-modal">
+  <div class="modal">
+    <div class="modal-head" style="background:#555">
+      <h2>何を追加しますか？</h2>
+      <button class="x" onclick="close_('choice-modal')">×</button>
+    </div>
+    <div class="choice-btns">
+      <button class="choice-btn" onclick="openAddLive()">
+        <span class="ci">🎵</span>
+        <span><div class="ct">ライブ</div><div class="cs">タスクが自動生成されます</div></span>
+      </button>
+      <button class="choice-btn" onclick="openAddEvent()">
+        <span class="ci">📅</span>
+        <span><div class="ct">予定</div><div class="cs">前日にLINE通知が届きます</div></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Live modal -->
+<div class="overlay" id="add-live-overlay">
   <div class="modal">
     <div class="modal-head" style="background:#00B900">
-      <h2>➕ ライブを追加</h2>
-      <button class="x" onclick="close_('add-overlay')">×</button>
+      <h2>🎵 ライブを追加</h2>
+      <button class="x" onclick="close_('add-live-overlay')">×</button>
     </div>
     <div class="modal-body">
       <span class="field-label">日付</span>
-      <input type="date" id="a-date">
+      <input type="date" id="al-date">
       <span class="field-label">種別</span>
-      <select id="a-type">
+      <select id="al-type">
         <option value="主催">主催</option>
         <option value="主催以外">主催以外</option>
       </select>
       <span class="field-label">ライブ名（任意）</span>
-      <input type="text" id="a-name" placeholder="例：○○主催ライブ">
+      <input type="text" id="al-name" placeholder="例：○○主催ライブ">
       <span class="field-label">場所（任意）</span>
-      <input type="text" id="a-venue" placeholder="例：新宿ロフト">
+      <input type="text" id="al-venue" placeholder="例：新宿ロフト">
     </div>
     <div class="modal-foot">
-      <button class="btn btn-gray" onclick="close_('add-overlay')">キャンセル</button>
-      <button class="btn btn-green" onclick="submitAdd()">追加する</button>
+      <button class="btn btn-gray" onclick="close_('add-live-overlay')">キャンセル</button>
+      <button class="btn btn-green" onclick="submitAddLive()">追加する</button>
     </div>
   </div>
 </div>
 
-<!-- Detail modal -->
-<div class="overlay" id="detail-overlay">
+<!-- Add Event modal -->
+<div class="overlay" id="add-event-overlay">
   <div class="modal">
-    <div class="modal-head" id="detail-head" style="background:#00B900">
-      <h2 id="detail-title">ライブ詳細</h2>
-      <button class="x" onclick="close_('detail-overlay')">×</button>
+    <div class="modal-head" style="background:#4A90D9">
+      <h2>📅 予定を追加</h2>
+      <button class="x" onclick="close_('add-event-overlay')">×</button>
     </div>
     <div class="modal-body">
-      <div class="live-meta" id="detail-meta"></div>
-      <div class="section-title">📋 タスク</div>
-      <div id="detail-tasks"></div>
+      <span class="field-label">日付</span>
+      <input type="date" id="ae-date">
+      <span class="field-label">タイトル</span>
+      <input type="text" id="ae-title" placeholder="例：レコーディング">
+      <span class="field-label">場所（任意）</span>
+      <input type="text" id="ae-location" placeholder="例：スタジオA">
     </div>
     <div class="modal-foot">
-      <button class="btn btn-red" onclick="doDelete()">🗑️ 削除</button>
-      <button class="btn btn-gray" onclick="openEdit()">✏️ 編集</button>
+      <button class="btn btn-gray" onclick="close_('add-event-overlay')">キャンセル</button>
+      <button class="btn btn-blue" onclick="submitAddEvent()">追加する</button>
     </div>
   </div>
 </div>
 
-<!-- Edit modal -->
-<div class="overlay" id="edit-overlay">
+<!-- Live Detail modal -->
+<div class="overlay" id="live-detail-overlay">
+  <div class="modal">
+    <div class="modal-head" id="live-detail-head" style="background:#00B900">
+      <h2 id="live-detail-title">ライブ詳細</h2>
+      <button class="x" onclick="close_('live-detail-overlay')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="live-meta" id="live-detail-meta"></div>
+      <div class="section-title">📋 タスク</div>
+      <div id="live-detail-tasks"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-red" onclick="deleteLive()">🗑️ 削除</button>
+      <button class="btn btn-gray" onclick="openEditLive()">✏️ 編集</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Live modal -->
+<div class="overlay" id="edit-live-overlay">
   <div class="modal">
     <div class="modal-head" style="background:#4A90D9">
       <h2>✏️ ライブを編集</h2>
-      <button class="x" onclick="close_('edit-overlay')">×</button>
+      <button class="x" onclick="close_('edit-live-overlay')">×</button>
     </div>
     <div class="modal-body">
       <span class="field-label">日付</span>
-      <input type="date" id="e-date">
+      <input type="date" id="el-date">
       <span class="field-label">種別</span>
-      <select id="e-type">
+      <select id="el-type">
         <option value="主催">主催</option>
         <option value="主催以外">主催以外</option>
       </select>
       <span class="field-label">ライブ名（任意）</span>
-      <input type="text" id="e-name" placeholder="例：○○主催ライブ">
+      <input type="text" id="el-name">
       <span class="field-label">場所（任意）</span>
-      <input type="text" id="e-venue" placeholder="例：新宿ロフト">
+      <input type="text" id="el-venue">
     </div>
     <div class="modal-foot">
-      <button class="btn btn-gray" onclick="close_('edit-overlay')">キャンセル</button>
-      <button class="btn btn-blue" onclick="submitEdit()">保存する</button>
+      <button class="btn btn-gray" onclick="close_('edit-live-overlay')">キャンセル</button>
+      <button class="btn btn-blue" onclick="submitEditLive()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Event Detail modal -->
+<div class="overlay" id="event-detail-overlay">
+  <div class="modal">
+    <div class="modal-head" style="background:#4A90D9">
+      <h2 id="ev-detail-title">予定詳細</h2>
+      <button class="x" onclick="close_('event-detail-overlay')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="live-meta" id="ev-detail-meta"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-red" onclick="deleteEvent()">🗑️ 削除</button>
+      <button class="btn btn-gray" onclick="openEditEvent()">✏️ 編集</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Event modal -->
+<div class="overlay" id="edit-event-overlay">
+  <div class="modal">
+    <div class="modal-head" style="background:#4A90D9">
+      <h2>✏️ 予定を編集</h2>
+      <button class="x" onclick="close_('edit-event-overlay')">×</button>
+    </div>
+    <div class="modal-body">
+      <span class="field-label">日付</span>
+      <input type="date" id="ee-date">
+      <span class="field-label">タイトル</span>
+      <input type="text" id="ee-title">
+      <span class="field-label">場所（任意）</span>
+      <input type="text" id="ee-location">
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-gray" onclick="close_('edit-event-overlay')">キャンセル</button>
+      <button class="btn btn-blue" onclick="submitEditEvent()">保存する</button>
     </div>
   </div>
 </div>
@@ -239,13 +323,15 @@
 let pw = '';
 let cal = null;
 let lives = [];
-let currentId = null;
+let events = [];
+let currentLiveId = null;
+let currentEventId = null;
+let pendingDate = '';
 
 // ---- Auth ----
 async function doLogin() {
   pw = document.getElementById('pw').value;
-  const err = document.getElementById('login-err');
-  err.textContent = '';
+  document.getElementById('login-err').textContent = '';
   try {
     const r = await fetch('/api/auth', {
       method: 'POST',
@@ -256,7 +342,7 @@ async function doLogin() {
     sessionStorage.setItem('cpw', pw);
     showApp();
   } catch {
-    err.textContent = 'パスワードが違います';
+    document.getElementById('login-err').textContent = 'パスワードが違います';
   }
 }
 
@@ -269,7 +355,7 @@ function doLogout() {
 }
 
 // ---- API ----
-async function req(method, path, body) {
+async function api(method, path, body) {
   const r = await fetch('/api' + path, {
     method,
     headers: { 'Content-Type': 'application/json', 'X-Password': pw },
@@ -279,109 +365,122 @@ async function req(method, path, body) {
   return r.json();
 }
 
-// ---- Calendar ----
-function today() {
+// ---- Helpers ----
+function todayStr() {
   return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
 }
-
 function fmtDate(s) {
   const [y, m, d] = s.split('-');
   return `${y}年${parseInt(m)}月${parseInt(d)}日`;
 }
+function open_(id)  { document.getElementById(id).classList.add('open'); }
+function close_(id) { document.getElementById(id).classList.remove('open'); }
 
-function eventColor(live) {
-  const t = today();
+// ---- Calendar ----
+function liveColor(live) {
+  const td = todayStr();
   if (!live.tasks || !live.tasks.length) return '#00B900';
   if (live.tasks.every(t => t.is_done)) return '#888888';
-  if (live.tasks.some(t => !t.is_done && t.deadline < t)) return '#FF4444';
-  // need to pass today separately - fix:
-  const td = today();
-  if (live.tasks.some(tk => !tk.is_done && tk.deadline < td)) return '#FF4444';
+  if (live.tasks.some(t => !t.is_done && t.deadline < td)) return '#FF4444';
   return '#00B900';
 }
 
-function toEvents(ls) {
-  return ls.map(l => {
-    const td = today();
-    let color = '#00B900';
-    if (l.tasks && l.tasks.length) {
-      if (l.tasks.every(t => t.is_done)) color = '#888888';
-      else if (l.tasks.some(t => !t.is_done && t.deadline < td)) color = '#FF4444';
-    }
-    return {
-      id: String(l.id),
-      title: l.name || (l.type === '主催' ? '主催ライブ' : '対バン'),
-      date: l.date,
-      backgroundColor: color,
-      borderColor: color,
-      extendedProps: { live: l }
-    };
+function buildCalEvents() {
+  const liveEvs = lives.map(l => {
+    const c = liveColor(l);
+    return { id: 'live-' + l.id, title: (l.name || (l.type === '主催' ? '主催ライブ' : '対バン')), date: l.date, backgroundColor: c, borderColor: c, extendedProps: { kind: 'live', live: l } };
   });
+  const eventEvs = events.map(e => ({
+    id: 'ev-' + e.id, title: e.title, date: e.date,
+    backgroundColor: '#4A90D9', borderColor: '#4A90D9',
+    extendedProps: { kind: 'event', event: e }
+  }));
+  return [...liveEvs, ...eventEvs];
 }
 
 async function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  lives = await req('GET', '/lives');
+  [lives, events] = await Promise.all([api('GET', '/lives'), api('GET', '/events')]);
   if (cal) { cal.destroy(); cal = null; }
   cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
     locale: 'ja',
     initialView: 'dayGridMonth',
     headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
     height: 'auto',
-    events: toEvents(lives),
-    dateClick(info) { openAdd(info.dateStr); },
-    eventClick(info) { openDetail(info.event.extendedProps.live); }
+    events: buildCalEvents(),
+    dateClick(info) { pendingDate = info.dateStr; open_('choice-modal'); },
+    eventClick(info) {
+      const { kind, live, event } = info.event.extendedProps;
+      if (kind === 'live') openLiveDetail(live);
+      else openEventDetail(event);
+    }
   });
   cal.render();
 }
 
 async function refresh() {
-  lives = await req('GET', '/lives');
+  [lives, events] = await Promise.all([api('GET', '/lives'), api('GET', '/events')]);
   cal.removeAllEvents();
-  toEvents(lives).forEach(e => cal.addEvent(e));
+  buildCalEvents().forEach(e => cal.addEvent(e));
 }
 
-// ---- Add ----
-function openAdd(dateStr) {
-  document.getElementById('a-date').value = dateStr || today();
-  document.getElementById('a-type').value = '主催';
-  document.getElementById('a-name').value = '';
-  document.getElementById('a-venue').value = '';
-  open_('add-overlay');
+// ---- Add Live ----
+function openAddLive() {
+  close_('choice-modal');
+  document.getElementById('al-date').value = pendingDate;
+  document.getElementById('al-type').value = '主催';
+  document.getElementById('al-name').value = '';
+  document.getElementById('al-venue').value = '';
+  open_('add-live-overlay');
 }
 
-async function submitAdd() {
-  const date = document.getElementById('a-date').value;
+async function submitAddLive() {
+  const date = document.getElementById('al-date').value;
   if (!date) { alert('日付を選んでください'); return; }
   try {
-    await req('POST', '/lives', {
-      date,
-      type: document.getElementById('a-type').value,
-      name: document.getElementById('a-name').value.trim(),
-      venue: document.getElementById('a-venue').value.trim()
-    });
-    close_('add-overlay');
+    await api('POST', '/lives', { date, type: document.getElementById('al-type').value, name: document.getElementById('al-name').value.trim(), venue: document.getElementById('al-venue').value.trim() });
+    close_('add-live-overlay');
     await refresh();
   } catch (e) { alert('登録に失敗しました: ' + e.message); }
 }
 
-// ---- Detail ----
-function openDetail(live) {
-  currentId = live.id;
-  const td = today();
+// ---- Add Event ----
+function openAddEvent() {
+  close_('choice-modal');
+  document.getElementById('ae-date').value = pendingDate;
+  document.getElementById('ae-title').value = '';
+  document.getElementById('ae-location').value = '';
+  open_('add-event-overlay');
+}
+
+async function submitAddEvent() {
+  const date = document.getElementById('ae-date').value;
+  const title = document.getElementById('ae-title').value.trim();
+  if (!date) { alert('日付を選んでください'); return; }
+  if (!title) { alert('タイトルを入力してください'); return; }
+  try {
+    await api('POST', '/events', { date, title, location: document.getElementById('ae-location').value.trim() });
+    close_('add-event-overlay');
+    await refresh();
+  } catch (e) { alert('登録に失敗しました: ' + e.message); }
+}
+
+// ---- Live Detail ----
+function openLiveDetail(live) {
+  currentLiveId = live.id;
+  const td = todayStr();
   const hasOver = (live.tasks || []).some(t => !t.is_done && t.deadline < td);
-  document.getElementById('detail-head').style.background = hasOver ? '#FF4444' : '#00B900';
-  document.getElementById('detail-title').textContent = live.name || fmtDate(live.date);
+  document.getElementById('live-detail-head').style.background = hasOver ? '#FF4444' : '#00B900';
+  document.getElementById('live-detail-title').textContent = live.name || fmtDate(live.date);
 
   const done = (live.tasks || []).filter(t => t.is_done).length;
-  let meta = `<p>📅 <strong>${fmtDate(live.date)}</strong></p>`;
-  meta += `<p>🎵 ${live.type}</p>`;
+  let meta = `<p>📅 <strong>${fmtDate(live.date)}</strong></p><p>🎵 ${live.type}</p>`;
   if (live.venue) meta += `<p>📍 ${live.venue}</p>`;
   meta += `<p>✅ 完了: ${done} / ${(live.tasks || []).length} 件</p>`;
-  document.getElementById('detail-meta').innerHTML = meta;
+  document.getElementById('live-detail-meta').innerHTML = meta;
 
-  const el = document.getElementById('detail-tasks');
+  const el = document.getElementById('live-detail-tasks');
   el.innerHTML = '';
   (live.tasks || []).forEach(task => {
     const over = !task.is_done && task.deadline < td;
@@ -395,58 +494,87 @@ function openDetail(live) {
       </div>`;
     el.appendChild(div);
   });
-
-  open_('detail-overlay');
+  open_('live-detail-overlay');
 }
 
 async function toggleTask(taskId, isDone, liveId) {
   try {
-    await req('PUT', `/tasks/${taskId}/done`, { is_done: isDone });
-    lives = await req('GET', '/lives');
+    await api('PUT', `/tasks/${taskId}/done`, { is_done: isDone });
+    lives = await api('GET', '/lives');
     const live = lives.find(l => l.id === liveId);
-    if (live) openDetail(live);
+    if (live) openLiveDetail(live);
     cal.removeAllEvents();
-    toEvents(lives).forEach(e => cal.addEvent(e));
+    buildCalEvents().forEach(e => cal.addEvent(e));
   } catch { alert('更新に失敗しました'); }
 }
 
-async function doDelete() {
+async function deleteLive() {
   if (!confirm('このライブとタスクをすべて削除しますか？')) return;
   try {
-    await req('DELETE', `/lives/${currentId}`);
-    close_('detail-overlay');
+    await api('DELETE', `/lives/${currentLiveId}`);
+    close_('live-detail-overlay');
     await refresh();
   } catch { alert('削除に失敗しました'); }
 }
 
-// ---- Edit ----
-function openEdit() {
-  const live = lives.find(l => l.id === currentId);
+function openEditLive() {
+  const live = lives.find(l => l.id === currentLiveId);
   if (!live) return;
-  close_('detail-overlay');
-  document.getElementById('e-date').value = live.date;
-  document.getElementById('e-type').value = live.type;
-  document.getElementById('e-name').value = live.name || '';
-  document.getElementById('e-venue').value = live.venue || '';
-  open_('edit-overlay');
+  close_('live-detail-overlay');
+  document.getElementById('el-date').value = live.date;
+  document.getElementById('el-type').value = live.type;
+  document.getElementById('el-name').value = live.name || '';
+  document.getElementById('el-venue').value = live.venue || '';
+  open_('edit-live-overlay');
 }
 
-async function submitEdit() {
+async function submitEditLive() {
   try {
-    await req('PUT', `/lives/${currentId}`, {
-      date: document.getElementById('e-date').value,
-      type: document.getElementById('e-type').value,
-      name: document.getElementById('e-name').value.trim(),
-      venue: document.getElementById('e-venue').value.trim()
-    });
-    close_('edit-overlay');
+    await api('PUT', `/lives/${currentLiveId}`, { date: document.getElementById('el-date').value, type: document.getElementById('el-type').value, name: document.getElementById('el-name').value.trim(), venue: document.getElementById('el-venue').value.trim() });
+    close_('edit-live-overlay');
     await refresh();
   } catch (e) { alert('更新に失敗しました: ' + e.message); }
 }
 
-// ---- Modal helpers ----
-function open_(id)  { document.getElementById(id).classList.add('open'); }
-function close_(id) { document.getElementById(id).classList.remove('open'); }
+// ---- Event Detail ----
+function openEventDetail(event) {
+  currentEventId = event.id;
+  document.getElementById('ev-detail-title').textContent = event.title;
+  let meta = `<p>📅 <strong>${fmtDate(event.date)}</strong></p>`;
+  if (event.location) meta += `<p>📍 ${event.location}</p>`;
+  meta += `<p style="color:#4A90D9;font-size:13px;margin-top:8px">前日9時にLINE通知が届きます</p>`;
+  document.getElementById('ev-detail-meta').innerHTML = meta;
+  open_('event-detail-overlay');
+}
+
+async function deleteEvent() {
+  if (!confirm('この予定を削除しますか？')) return;
+  try {
+    await api('DELETE', `/events/${currentEventId}`);
+    close_('event-detail-overlay');
+    await refresh();
+  } catch { alert('削除に失敗しました'); }
+}
+
+function openEditEvent() {
+  const ev = events.find(e => e.id === currentEventId);
+  if (!ev) return;
+  close_('event-detail-overlay');
+  document.getElementById('ee-date').value = ev.date;
+  document.getElementById('ee-title').value = ev.title;
+  document.getElementById('ee-location').value = ev.location || '';
+  open_('edit-event-overlay');
+}
+
+async function submitEditEvent() {
+  const title = document.getElementById('ee-title').value.trim();
+  if (!title) { alert('タイトルを入力してください'); return; }
+  try {
+    await api('PUT', `/events/${currentEventId}`, { date: document.getElementById('ee-date').value, title, location: document.getElementById('ee-location').value.trim() });
+    close_('edit-event-overlay');
+    await refresh();
+  } catch (e) { alert('更新に失敗しました: ' + e.message); }
+}
 
 // Auto-login
 window.addEventListener('load', () => {

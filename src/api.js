@@ -75,4 +75,41 @@ router.put('/tasks/:id/done', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- Events ----
+
+router.get('/events', auth, async (req, res) => {
+  const { data, error } = await supabase.from('events').select('*').order('date');
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+router.post('/events', auth, async (req, res) => {
+  const { title, date, location } = req.body;
+  const userId = process.env.CALENDAR_CHAT_ID || 'web';
+  const { data, error } = await supabase
+    .from('events')
+    .insert({ title, date, location: location || null, user_id: userId })
+    .select()
+    .single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+router.put('/events/:id', auth, async (req, res) => {
+  const { title, date, location } = req.body;
+  const fields = {};
+  if (title !== undefined) fields.title = title;
+  if (date !== undefined) fields.date = date;
+  if (location !== undefined) fields.location = location || null;
+  const { data, error } = await supabase.from('events').update(fields).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+router.delete('/events/:id', auth, async (req, res) => {
+  const { error } = await supabase.from('events').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
 module.exports = router;

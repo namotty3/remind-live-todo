@@ -6,6 +6,11 @@ function todayJST() {
   return jst.toISOString().split('T')[0];
 }
 
+function tomorrowJST() {
+  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000);
+  return jst.toISOString().split('T')[0];
+}
+
 function nowJSTString() {
   const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
   return jst.toISOString().replace('T', ' ').split('.')[0];
@@ -17,17 +22,20 @@ function formatDate(dateStr) {
 }
 
 function initScheduler(client) {
-  // 毎日 0:00 UTC = 9:00 JST に実行
   cron.schedule('0 0 * * *', () => checkAndNotify(client));
   console.log('スケジューラー起動（毎日9:00 JST）');
 }
 
 async function checkAndNotify(client) {
+  await notifyOverdueTasks(client);
+  await notifyTomorrowEvents(client);
+}
+
+async function notifyOverdueTasks(client) {
   const today = todayJST();
   const twoDaysAgo = new Date(Date.now() + 9 * 60 * 60 * 1000 - 2 * 24 * 60 * 60 * 1000);
   const twoDaysAgoStr = twoDaysAgo.toISOString().replace('T', ' ').split('.')[0];
 
-  // 期限切れ・未完了・2日以上通知していないタスクをLIVE情報付きで取得
   const { data: overdueTasks, error } = await supabase
     .from('tasks')
     .select('id, name, deadline, live_id, lives!inner(date, type, user_id)')
@@ -37,7 +45,6 @@ async function checkAndNotify(client) {
 
   if (error || !overdueTasks || overdueTasks.length === 0) return;
 
-  // ユーザーごとにグループ化
   const byUser = {};
   for (const task of overdueTasks) {
     const { user_id, date, type } = task.lives;
@@ -52,7 +59,6 @@ async function checkAndNotify(client) {
 
   for (const [userId, lives] of Object.entries(byUser)) {
     let msg = '⚠️ 未完了タスクのお知らせ\n\n';
-
     for (const liveData of Object.values(lives)) {
       msg += `📅 ${formatDate(liveData.liveDate)}（${liveData.liveType}）\n`;
       for (const task of liveData.tasks) {
@@ -65,14 +71,42 @@ async function checkAndNotify(client) {
 
     try {
       await client.pushMessage({ to: userId, messages: [{ type: 'text', text: msg }] });
-
-      const notifiedIds = overdueTasks
-        .filter((t) => t.lives.user_id === userId)
-        .map((t) => t.id);
-
+      const notifiedIds = overdueTasks.filter((t) => t.lives.user_id === userId).map((t) => t.id);
       await supabase.from('tasks').update({ last_notified: now }).in('id', notifiedIds);
     } catch (err) {
       console.error(`通知失敗 userId=${userId}:`, err.message);
+    }
+  }
+}
+
+async function notifyTomorrowEvents(client) {
+  const tomorrow = tomorrowJST();
+
+  const { data: events, error } = await supabase
+    .from('events')
+    .select('*')
+    .eq('date', tomorrow);
+
+  if (error || !events || events.length === 0) return;
+
+  const byUser = {};
+  for (const ev of events) {
+    if (!byUser[ev.user_id]) byUser[ev.user_id] = [];
+    byUser[ev.user_id].push(ev);
+  }
+
+  for (const [userId, evs] of Object.entries(byUser)) {
+    let msg = '📅 明日の予定\n\n';
+    for (const ev of evs) {
+      msg += `・${ev.title}`;
+      if (ev.location) msg += `\n  📍 ${ev.location}`;
+      msg += '\n';
+    }
+
+    try {
+      await client.pushMessage({ to: userId, messages: [{ type: 'text', text: msg }] });
+    } catch (err) {
+      console.error(`予定通知失敗 userId=${userId}:`, err.message);
     }
   }
 }
