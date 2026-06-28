@@ -3,11 +3,13 @@ const TASK_DEFINITIONS = {
     { name: '対バンを呼ぶ',    monthsBefore: 6 },
     { name: 'タイテ作成',      monthsBefore: 5 },
     { name: 'フライヤー作成',  monthsBefore: 5 },
+    { name: 'スタジオ調整',    monthsBefore: 1 },
     { name: 'サポート確定',    monthsBefore: 1 },
     { name: 'セトリ作成',      monthsBefore: 1 },
     { name: 'セット図作成',    weeksBefore:  2 },
   ],
   主催以外: [
+    { name: 'スタジオ調整',    monthsBefore: 1 },
     { name: 'サポート確定',    monthsBefore: 1 },
     { name: 'セトリ作成',      monthsBefore: 1 },
     { name: 'セット図作成',    weeksBefore:  2 },
