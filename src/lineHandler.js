@@ -6,6 +6,13 @@ function todayJST() {
   return jst.toISOString().split('T')[0];
 }
 
+// グループ・個人どちらでも使えるようにチャットIDを取得
+function getChatId(source) {
+  if (source.type === 'group') return source.groupId;
+  if (source.type === 'room')  return source.roomId;
+  return source.userId;
+}
+
 function formatDate(dateStr) {
   const [y, m, d] = dateStr.split('-');
   return `${y}年${parseInt(m)}月${parseInt(d)}日`;
@@ -15,7 +22,7 @@ function formatDate(dateStr) {
 
 async function handleMessage(event, client) {
   const text = event.message.text.trim();
-  const userId = event.source.userId;
+  const userId = getChatId(event.source);
   const replyToken = event.replyToken;
 
   const reply = (messages) =>
@@ -36,7 +43,7 @@ async function handleMessage(event, client) {
 async function handlePostback(event, client) {
   const params = new URLSearchParams(event.postback.data);
   const action = params.get('action');
-  const userId = event.source.userId;
+  const userId = getChatId(event.source);
   const replyToken = event.replyToken;
 
   const reply = (messages) =>
