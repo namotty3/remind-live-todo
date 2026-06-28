@@ -641,7 +641,7 @@ async function handleListLives(userId, reply) {
     return reply({ type: 'text', text: '📭 登録済みライブはありません。', quickReply: { items: [{ type: 'action', action: { type: 'message', label: '➕ ライブ追加', text: 'ライブ追加' } }] } });
   }
 
-  const { data: tasks } = await supabase.from('tasks').select('*').in('live_id', lives.map((l) => l.id));
+  const { data: tasks } = await supabase.from('tasks').select('*').in('live_id', lives.map((l) => l.id)).order('deadline');
   const bubbles = lives.map((l) => buildTaskFlex(l, (tasks || []).filter((t) => t.live_id === l.id)).contents);
   return reply({
     type: 'flex',
