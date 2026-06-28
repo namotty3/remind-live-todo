@@ -276,6 +276,13 @@ async function handlePostback(event, client) {
     return reply({ type: 'text', text: '📝 新しい詳細を入力してください\n（「クリア」で削除）', quickReply: { items: [{ type: 'action', action: { type: 'message', label: 'クリア', text: 'クリア' } }, { type: 'action', action: { type: 'message', label: 'キャンセル', text: 'キャンセル' } }] } });
   }
 
+  if (action === 'show_flyer') {
+    const liveId = parseInt(params.get('live_id'));
+    const { data: live } = await supabase.from('lives').select('flyer_url').eq('id', liveId).single();
+    if (!live || !live.flyer_url) return reply({ type: 'text', text: 'フライヤーが登録されていません。' });
+    return reply({ type: 'image', originalContentUrl: live.flyer_url, previewImageUrl: live.flyer_url });
+  }
+
   if (action === 'edit_flyer') {
     const liveId = parseInt(params.get('live_id'));
     await setSession(userId, 'editing_flyer', { live_id: liveId });
@@ -465,7 +472,7 @@ function buildTaskFlex(live, tasks) {
   }
   bodyContents.push(...taskItems);
   if (live.flyer_url) {
-    bodyContents.push({ type: 'button', action: { type: 'uri', label: '🖼️ フライヤーを見る', uri: live.flyer_url }, style: 'secondary', margin: 'lg' });
+    bodyContents.push({ type: 'button', action: { type: 'postback', label: '🖼️ フライヤーを見る', data: `action=show_flyer&live_id=${live.id}`, displayText: 'フライヤーを見る' }, style: 'secondary', margin: 'lg' });
   }
 
   return {

@@ -80,7 +80,9 @@ async function notifyUpcomingLives(client) {
   for (const [userId, ls] of Object.entries(byUser)) {
     for (const live of ls) {
       try {
-        await client.pushMessage({ to: userId, messages: [buildLiveReminderFlex(live)] });
+        const messages = [buildLiveReminderFlex(live)];
+        if (live.flyer_url) messages.push({ type: 'image', originalContentUrl: live.flyer_url, previewImageUrl: live.flyer_url });
+        await client.pushMessage({ to: userId, messages });
       } catch (err) {
         console.error(`ライブリマインド失敗 userId=${userId}:`, err.message);
       }
