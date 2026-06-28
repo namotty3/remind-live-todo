@@ -204,6 +204,10 @@
       <input type="text" id="al-name" placeholder="例：○○主催ライブ">
       <span class="field-label">場所（任意）</span>
       <input type="text" id="al-venue" placeholder="例：新宿ロフト">
+      <span class="field-label">詳細（任意）</span>
+      <input type="text" id="al-desc" placeholder="例：出演時間 19:00〜、セット30分">
+      <span class="field-label">フライヤーURL（任意）</span>
+      <input type="text" id="al-flyer" placeholder="https://...">
     </div>
     <div class="modal-foot">
       <button class="btn btn-gray" onclick="close_('add-live-overlay')">キャンセル</button>
@@ -272,6 +276,10 @@
       <input type="text" id="el-name">
       <span class="field-label">場所（任意）</span>
       <input type="text" id="el-venue">
+      <span class="field-label">詳細（任意）</span>
+      <input type="text" id="el-desc">
+      <span class="field-label">フライヤーURL（任意）</span>
+      <input type="text" id="el-flyer">
     </div>
     <div class="modal-foot">
       <button class="btn btn-gray" onclick="close_('edit-live-overlay')">キャンセル</button>
@@ -442,6 +450,8 @@ function openAddLive() {
   document.getElementById('al-type').value = '主催';
   document.getElementById('al-name').value = '';
   document.getElementById('al-venue').value = '';
+  document.getElementById('al-desc').value = '';
+  document.getElementById('al-flyer').value = '';
   open_('add-live-overlay');
 }
 
@@ -449,7 +459,7 @@ async function submitAddLive() {
   const date = document.getElementById('al-date').value;
   if (!date) { alert('日付を選んでください'); return; }
   try {
-    await api('POST', '/lives', { date, type: document.getElementById('al-type').value, name: document.getElementById('al-name').value.trim(), venue: document.getElementById('al-venue').value.trim() });
+    await api('POST', '/lives', { date, type: document.getElementById('al-type').value, name: document.getElementById('al-name').value.trim(), venue: document.getElementById('al-venue').value.trim(), description: document.getElementById('al-desc').value.trim(), flyer_url: document.getElementById('al-flyer').value.trim() });
     close_('add-live-overlay');
     await refresh();
   } catch (e) { alert('登録に失敗しました: ' + e.message); }
@@ -487,6 +497,8 @@ function openLiveDetail(live) {
   const done = (live.tasks || []).filter(t => t.is_done).length;
   let meta = `<p>📅 <strong>${fmtDate(live.date)}</strong></p><p>🎵 ${live.type}</p>`;
   if (live.venue) meta += `<p>📍 ${live.venue}</p>`;
+  if (live.description) meta += `<p>📝 ${live.description}</p>`;
+  if (live.flyer_url) meta += `<p><a href="${live.flyer_url}" target="_blank" style="color:#4A90D9;font-size:14px">🖼️ フライヤーを見る</a></p>`;
   meta += `<p>✅ 完了: ${done} / ${(live.tasks || []).length} 件</p>`;
   document.getElementById('live-detail-meta').innerHTML = meta;
 
@@ -535,12 +547,14 @@ function openEditLive() {
   document.getElementById('el-type').value = live.type;
   document.getElementById('el-name').value = live.name || '';
   document.getElementById('el-venue').value = live.venue || '';
+  document.getElementById('el-desc').value = live.description || '';
+  document.getElementById('el-flyer').value = live.flyer_url || '';
   open_('edit-live-overlay');
 }
 
 async function submitEditLive() {
   try {
-    await api('PUT', `/lives/${currentLiveId}`, { date: document.getElementById('el-date').value, type: document.getElementById('el-type').value, name: document.getElementById('el-name').value.trim(), venue: document.getElementById('el-venue').value.trim() });
+    await api('PUT', `/lives/${currentLiveId}`, { date: document.getElementById('el-date').value, type: document.getElementById('el-type').value, name: document.getElementById('el-name').value.trim(), venue: document.getElementById('el-venue').value.trim(), description: document.getElementById('el-desc').value.trim(), flyer_url: document.getElementById('el-flyer').value.trim() });
     close_('edit-live-overlay');
     await refresh();
   } catch (e) { alert('更新に失敗しました: ' + e.message); }

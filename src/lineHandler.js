@@ -85,9 +85,33 @@ async function handleSessionInput(session, text, chatId, reply) {
 
   if (session.step === 'awaiting_venue') {
     const venue = isSkip ? null : text;
-    const { date, type, name } = session.data;
+    await setSession(chatId, 'awaiting_description', { ...session.data, venue });
+    return reply({
+      type: 'text',
+      text: '📝 詳細を入力してください（任意）\n例：出演時間、セット時間など',
+      quickReply: {
+        items: [{ type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } }]
+      }
+    });
+  }
+
+  if (session.step === 'awaiting_description') {
+    const description = isSkip ? null : text;
+    await setSession(chatId, 'awaiting_flyer', { ...session.data, description });
+    return reply({
+      type: 'text',
+      text: '🖼️ フライヤー画像URLを入力してください（任意）',
+      quickReply: {
+        items: [{ type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } }]
+      }
+    });
+  }
+
+  if (session.step === 'awaiting_flyer') {
+    const flyer_url = isSkip ? null : text;
+    const { date, type, name, venue, description } = session.data;
     await clearSession(chatId);
-    return handleAddLive(date, type, name, venue, chatId, reply);
+    return handleAddLive(date, type, name, venue, description, flyer_url, chatId, reply);
   }
 
   if (session.step === 'event_title') {
@@ -106,14 +130,28 @@ async function handleSessionInput(session, text, chatId, reply) {
     const { live_id } = session.data;
     const newName = (isSkip || text === 'クリア') ? null : text;
     await clearSession(chatId);
-    return handleUpdateLiveField(live_id, { name: newName }, userId, reply);
+    return handleUpdateLiveField(live_id, { name: newName }, chatId, reply);
   }
 
   if (session.step === 'editing_venue') {
     const { live_id } = session.data;
     const newVenue = (isSkip || text === 'クリア') ? null : text;
     await clearSession(chatId);
-    return handleUpdateLiveField(live_id, { venue: newVenue }, userId, reply);
+    return handleUpdateLiveField(live_id, { venue: newVenue }, chatId, reply);
+  }
+
+  if (session.step === 'editing_description') {
+    const { live_id } = session.data;
+    const newVal = (isSkip || text === 'クリア') ? null : text;
+    await clearSession(chatId);
+    return handleUpdateLiveField(live_id, { description: newVal }, chatId, reply);
+  }
+
+  if (session.step === 'editing_flyer') {
+    const { live_id } = session.data;
+    const newVal = (isSkip || text === 'クリア') ? null : text;
+    await clearSession(chatId);
+    return handleUpdateLiveField(live_id, { flyer_url: newVal }, chatId, reply);
   }
 }
 
@@ -169,31 +207,25 @@ async function handlePostback(event, client) {
   if (action === 'edit_name') {
     const liveId = parseInt(params.get('live_id'));
     await setSession(userId, 'editing_name', { live_id: liveId });
-    return reply({
-      type: 'text',
-      text: '🎤 新しいライブ名を入力してください\n（「クリア」で削除）',
-      quickReply: {
-        items: [
-          { type: 'action', action: { type: 'message', label: 'クリア', text: 'クリア' } },
-          { type: 'action', action: { type: 'message', label: 'キャンセル', text: 'キャンセル' } }
-        ]
-      }
-    });
+    return reply({ type: 'text', text: '🎤 新しいライブ名を入力してください\n（「クリア」で削除）', quickReply: { items: [{ type: 'action', action: { type: 'message', label: 'クリア', text: 'クリア' } }, { type: 'action', action: { type: 'message', label: 'キャンセル', text: 'キャンセル' } }] } });
   }
 
   if (action === 'edit_venue') {
     const liveId = parseInt(params.get('live_id'));
     await setSession(userId, 'editing_venue', { live_id: liveId });
-    return reply({
-      type: 'text',
-      text: '📍 新しい場所を入力してください\n（「クリア」で削除）',
-      quickReply: {
-        items: [
-          { type: 'action', action: { type: 'message', label: 'クリア', text: 'クリア' } },
-          { type: 'action', action: { type: 'message', label: 'キャンセル', text: 'キャンセル' } }
-        ]
-      }
-    });
+    return reply({ type: 'text', text: '📍 新しい場所を入力してください\n（「クリア」で削除）', quickReply: { items: [{ type: 'action', action: { type: 'message', label: 'クリア', text: 'クリア' } }, { type: 'action', action: { type: 'message', label: 'キャンセル', text: 'キャンセル' } }] } });
+  }
+
+  if (action === 'edit_description') {
+    const liveId = parseInt(params.get('live_id'));
+    await setSession(userId, 'editing_description', { live_id: liveId });
+    return reply({ type: 'text', text: '📝 新しい詳細を入力してください\n（「クリア」で削除）', quickReply: { items: [{ type: 'action', action: { type: 'message', label: 'クリア', text: 'クリア' } }, { type: 'action', action: { type: 'message', label: 'キャンセル', text: 'キャンセル' } }] } });
+  }
+
+  if (action === 'edit_flyer') {
+    const liveId = parseInt(params.get('live_id'));
+    await setSession(userId, 'editing_flyer', { live_id: liveId });
+    return reply({ type: 'text', text: '🖼️ フライヤー画像URLを入力してください\n（「クリア」で削除）', quickReply: { items: [{ type: 'action', action: { type: 'message', label: 'クリア', text: 'クリア' } }, { type: 'action', action: { type: 'message', label: 'キャンセル', text: 'キャンセル' } }] } });
   }
 
   if (action === 'set_event_date') {
@@ -360,6 +392,15 @@ function buildTaskFlex(live, tasks) {
     };
   });
 
+  const bodyContents = [];
+  if (live.description) {
+    bodyContents.push({ type: 'box', layout: 'vertical', backgroundColor: '#f5f5f5', cornerRadius: 'sm', paddingAll: 'sm', margin: 'md', contents: [{ type: 'text', text: `📝 ${live.description}`, size: 'sm', color: '#666666', wrap: true }] });
+  }
+  bodyContents.push(...taskItems);
+  if (live.flyer_url) {
+    bodyContents.push({ type: 'button', action: { type: 'uri', label: '🖼️ フライヤーを見る', uri: live.flyer_url }, style: 'secondary', margin: 'lg' });
+  }
+
   return {
     type: 'flex',
     altText: `${live.name || formatDate(live.date)}のタスク`,
@@ -373,7 +414,7 @@ function buildTaskFlex(live, tasks) {
         paddingAll: 'lg',
         contents: buildLiveHeader(live, `完了: ${doneCount}/${tasks.length}件`)
       },
-      body: { type: 'box', layout: 'vertical', spacing: 'none', contents: taskItems }
+      body: { type: 'box', layout: 'vertical', spacing: 'none', contents: bodyContents }
     }
   };
 }
@@ -455,29 +496,27 @@ function buildDatePickerForEdit(liveId) {
 
 function buildEditMenu(live) {
   const label = live.name || formatDate(live.date);
+  const pb = (lbl, act) => ({ type: 'button', action: { type: 'postback', label: lbl, data: `action=${act}&live_id=${live.id}`, displayText: lbl }, style: 'secondary', margin: 'sm' });
   return {
     type: 'flex',
     altText: 'ライブを編集',
     contents: {
       type: 'bubble',
       header: {
-        type: 'box',
-        layout: 'vertical',
-        backgroundColor: '#4A90D9',
-        paddingAll: 'lg',
+        type: 'box', layout: 'vertical', backgroundColor: '#4A90D9', paddingAll: 'lg',
         contents: [
           { type: 'text', text: '✏️ ライブを編集', color: '#ffffff', weight: 'bold', size: 'lg' },
           { type: 'text', text: label, color: '#ddeeff', size: 'sm', wrap: true }
         ]
       },
       body: {
-        type: 'box',
-        layout: 'vertical',
-        spacing: 'sm',
+        type: 'box', layout: 'vertical', spacing: 'sm',
         contents: [
           { type: 'button', action: { type: 'postback', label: '📅 日付を変更', data: `action=edit_date&live_id=${live.id}`, displayText: '日付を変更' }, style: 'primary', color: '#4A90D9' },
-          { type: 'button', action: { type: 'postback', label: '🎤 ライブ名を変更', data: `action=edit_name&live_id=${live.id}`, displayText: 'ライブ名を変更' }, style: 'secondary', margin: 'sm' },
-          { type: 'button', action: { type: 'postback', label: '📍 場所を変更', data: `action=edit_venue&live_id=${live.id}`, displayText: '場所を変更' }, style: 'secondary', margin: 'sm' }
+          pb('🎤 ライブ名を変更', 'edit_name'),
+          pb('📍 場所を変更',     'edit_venue'),
+          pb('📝 詳細を変更',     'edit_description'),
+          pb('🖼️ フライヤーURLを変更', 'edit_flyer'),
         ]
       }
     }
@@ -486,10 +525,10 @@ function buildEditMenu(live) {
 
 // ---- コアハンドラー ----
 
-async function handleAddLive(dateStr, liveType, liveName, liveVenue, userId, reply) {
+async function handleAddLive(dateStr, liveType, liveName, liveVenue, description, flyerUrl, userId, reply) {
   const { data: live, error } = await supabase
     .from('lives')
-    .insert({ date: dateStr, type: liveType, name: liveName || null, venue: liveVenue || null, user_id: userId })
+    .insert({ date: dateStr, type: liveType, name: liveName || null, venue: liveVenue || null, description: description || null, flyer_url: flyerUrl || null, user_id: userId })
     .select()
     .single();
 
@@ -513,7 +552,7 @@ async function handleAddLiveText(text, userId, reply) {
   const [, dateStr, liveType] = parts;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return reply({ type: 'text', text: '❌ 日付形式: 2026-09-15' });
   if (!['主催', '主催以外'].includes(liveType)) return reply({ type: 'text', text: '❌ 種別は「主催」または「主催以外」' });
-  return handleAddLive(dateStr, liveType, null, null, userId, reply);
+  return handleAddLive(dateStr, liveType, null, null, null, null, userId, reply);
 }
 
 async function handleListLives(userId, reply) {
@@ -539,7 +578,7 @@ async function handleShowTasks(liveId, userId, reply) {
 async function handleCheck(taskId, userId, reply) {
   const { data: task } = await supabase
     .from('tasks')
-    .select('*, lives!inner(user_id, date, type, name, venue)')
+    .select('*, lives!inner(user_id, date, type, name, venue, description, flyer_url)')
     .eq('id', taskId)
     .eq('lives.user_id', userId)
     .single();
@@ -561,7 +600,7 @@ async function handleCheck(taskId, userId, reply) {
 async function handleUncheck(taskId, userId, reply) {
   const { data: task } = await supabase
     .from('tasks')
-    .select('*, lives!inner(user_id, date, type, name, venue)')
+    .select('*, lives!inner(user_id, date, type, name, venue, description, flyer_url)')
     .eq('id', taskId)
     .eq('lives.user_id', userId)
     .single();
@@ -597,7 +636,7 @@ async function handleUpdateLiveField(liveId, fields, userId, reply) {
   if (error || !live) return reply({ type: 'text', text: '❌ 更新に失敗しました。' });
 
   const label = live.name || formatDate(live.date);
-  const fieldLabel = fields.date ? '日付' : fields.name !== undefined ? 'ライブ名' : '場所';
+  const fieldLabel = fields.date ? '日付' : fields.name !== undefined ? 'ライブ名' : fields.venue !== undefined ? '場所' : fields.description !== undefined ? '詳細' : 'フライヤー';
   return reply({ type: 'text', text: `✅ 「${label}」の${fieldLabel}を更新しました！` });
 }
 

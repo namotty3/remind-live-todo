@@ -32,12 +32,12 @@ router.get('/lives', auth, async (req, res) => {
 });
 
 router.post('/lives', auth, async (req, res) => {
-  const { date, type, name, venue } = req.body;
+  const { date, type, name, venue, description, flyer_url } = req.body;
   const userId = process.env.CALENDAR_CHAT_ID || 'web';
 
   const { data: live, error } = await supabase
     .from('lives')
-    .insert({ date, type, name: name || null, venue: venue || null, user_id: userId })
+    .insert({ date, type, name: name || null, venue: venue || null, description: description || null, flyer_url: flyer_url || null, user_id: userId })
     .select()
     .single();
 
@@ -51,12 +51,14 @@ router.post('/lives', auth, async (req, res) => {
 });
 
 router.put('/lives/:id', auth, async (req, res) => {
-  const { date, type, name, venue } = req.body;
+  const { date, type, name, venue, description, flyer_url } = req.body;
   const fields = {};
   if (date !== undefined) fields.date = date;
   if (type !== undefined) fields.type = type;
   if (name !== undefined) fields.name = name || null;
   if (venue !== undefined) fields.venue = venue || null;
+  if (description !== undefined) fields.description = description || null;
+  if (flyer_url !== undefined) fields.flyer_url = flyer_url || null;
 
   const { data: live, error } = await supabase.from('lives').update(fields).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
