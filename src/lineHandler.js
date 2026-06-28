@@ -642,8 +642,12 @@ async function handleListLives(userId, reply) {
   }
 
   const { data: tasks } = await supabase.from('tasks').select('*').in('live_id', lives.map((l) => l.id));
-  const messages = lives.map((l) => buildTaskFlex(l, (tasks || []).filter((t) => t.live_id === l.id)));
-  return reply(messages);
+  const bubbles = lives.map((l) => buildTaskFlex(l, (tasks || []).filter((t) => t.live_id === l.id)).contents);
+  return reply({
+    type: 'flex',
+    altText: `ライブ一覧（${lives.length}件）`,
+    contents: bubbles.length === 1 ? bubbles[0] : { type: 'carousel', contents: bubbles }
+  });
 }
 
 async function handleShowTasks(liveId, userId, reply) {
