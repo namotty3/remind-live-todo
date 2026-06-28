@@ -60,6 +60,7 @@ async function handleMessage(event, client) {
   if (/^チェック解除 \d+$/.test(text))                   return handleUncheck(parseInt(text.split(' ')[1]), userId, reply);
   if (/^チェック \d+$/.test(text))                       return handleCheck(parseInt(text.split(' ')[1]), userId, reply);
   if (text === 'ヘルプ' || text === 'help')              return reply({ type: 'text', text: helpText() });
+  if (text === 'ID確認')                                 return reply({ type: 'text', text: `このチャットのID:\n${userId}` });
   if (text.startsWith('ライブ追加 '))                    return handleAddLiveText(text, userId, reply);
 }
 

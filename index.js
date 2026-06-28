@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const path = require('path');
 const line = require('@line/bot-sdk');
 const { handleMessage, handlePostback } = require('./src/lineHandler');
 const { initScheduler } = require('./src/scheduler');
@@ -22,6 +23,9 @@ app.use((req, _res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
 });
+
+app.use('/api', express.json(), require('./src/api'));
+app.get('/calendar', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 app.post('/webhook', line.middleware(lineConfig), async (req, res) => {
   const results = await Promise.allSettled(

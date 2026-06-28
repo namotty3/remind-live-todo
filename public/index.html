@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎵 バンドライブカレンダー</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4f8; color: #333; }
+
+    /* ---- Login ---- */
+    #login-screen {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; min-height: 100vh; gap: 14px;
+    }
+    #login-screen h1 { font-size: 22px; }
+    #login-screen input {
+      padding: 12px 16px; border: 2px solid #ddd; border-radius: 10px;
+      font-size: 16px; width: 280px; outline: none;
+    }
+    #login-screen input:focus { border-color: #00B900; }
+    #login-screen .login-btn {
+      padding: 12px; background: #00B900; color: #fff; border: none;
+      border-radius: 10px; font-size: 16px; cursor: pointer; width: 280px;
+    }
+    .error-msg { color: #FF4444; font-size: 14px; min-height: 20px; }
+
+    /* ---- App ---- */
+    #app { display: none; max-width: 900px; margin: 0 auto; padding: 16px; }
+    #app header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+    }
+    #app header h1 { font-size: 20px; flex: 1; }
+    #app header button {
+      padding: 8px 14px; background: #888; color: #fff; border: none;
+      border-radius: 8px; font-size: 13px; cursor: pointer;
+    }
+    #calendar-wrap { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+
+    /* ---- Legend ---- */
+    .legend {
+      display: flex; gap: 14px; margin-bottom: 12px; flex-wrap: wrap;
+      font-size: 13px; color: #555;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+
+    /* ---- Modal ---- */
+    .overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      z-index: 1000; align-items: center; justify-content: center; padding: 16px;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: #fff; border-radius: 16px; width: 100%;
+      max-width: 480px; max-height: 90vh; overflow-y: auto;
+    }
+    .modal-head {
+      padding: 18px 20px; color: #fff; border-radius: 16px 16px 0 0;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .modal-head h2 { font-size: 18px; flex: 1; }
+    .modal-head .x { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; line-height: 1; }
+    .modal-body { padding: 18px 20px; }
+    .field-label { font-size: 13px; color: #666; margin: 14px 0 4px; display: block; }
+    .field-label:first-child { margin-top: 0; }
+    .modal-body input, .modal-body select {
+      width: 100%; padding: 10px 12px; border: 2px solid #ddd;
+      border-radius: 8px; font-size: 15px; outline: none;
+    }
+    .modal-body input:focus, .modal-body select:focus { border-color: #00B900; }
+    .modal-foot {
+      padding: 14px 20px; display: flex; gap: 8px; border-top: 1px solid #eee;
+    }
+    .btn { padding: 12px; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; flex: 1; font-weight: 500; }
+    .btn-green  { background: #00B900; color: #fff; }
+    .btn-blue   { background: #4A90D9; color: #fff; }
+    .btn-red    { background: #FF4444; color: #fff; }
+    .btn-gray   { background: #f0f0f0; color: #333; }
+
+    /* ---- Live meta ---- */
+    .live-meta { margin-bottom: 16px; }
+    .live-meta p { font-size: 14px; color: #555; margin-top: 6px; }
+    .section-title { font-size: 14px; font-weight: 700; color: #333; margin-bottom: 8px; }
+
+    /* ---- Tasks ---- */
+    .task-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 0; border-bottom: 1px solid #f0f0f0;
+    }
+    .task-item:last-child { border-bottom: none; }
+    .task-item input[type="checkbox"] { width: 18px; height: 18px; margin-top: 2px; cursor: pointer; accent-color: #00B900; flex-shrink: 0; }
+    .task-info { flex: 1; }
+    .task-name { font-size: 14px; }
+    .task-name.done { text-decoration: line-through; color: #999; }
+    .task-name.over { color: #FF4444; }
+    .task-dl { font-size: 12px; color: #aaa; margin-top: 2px; }
+    .task-dl.over { color: #FF4444; }
+  </style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login-screen">
+  <h1>🎵 バンドライブカレンダー</h1>
+  <input type="password" id="pw" placeholder="パスワードを入力" onkeydown="if(event.key==='Enter')doLogin()">
+  <button class="login-btn" onclick="doLogin()">ログイン</button>
+  <p class="error-msg" id="login-err"></p>
+</div>
+
+<!-- App -->
+<div id="app">
+  <header>
+    <h1>🎵 バンドライブカレンダー</h1>
+    <button onclick="doLogout()">ログアウト</button>
+  </header>
+  <div id="calendar-wrap">
+    <div class="legend">
+      <span class="legend-item"><span class="dot" style="background:#00B900"></span>問題なし</span>
+      <span class="legend-item"><span class="dot" style="background:#FF4444"></span>期限切れあり</span>
+      <span class="legend-item"><span class="dot" style="background:#888"></span>完了</span>
+    </div>
+    <div id="calendar"></div>
+  </div>
+</div>
+
+<!-- Add modal -->
+<div class="overlay" id="add-overlay">
+  <div class="modal">
+    <div class="modal-head" style="background:#00B900">
+      <h2>➕ ライブを追加</h2>
+      <button class="x" onclick="close_('add-overlay')">×</button>
+    </div>
+    <div class="modal-body">
+      <span class="field-label">日付</span>
+      <input type="date" id="a-date">
+      <span class="field-label">種別</span>
+      <select id="a-type">
+        <option value="主催">主催</option>
+        <option value="主催以外">主催以外</option>
+      </select>
+      <span class="field-label">ライブ名（任意）</span>
+      <input type="text" id="a-name" placeholder="例：○○主催ライブ">
+      <span class="field-label">場所（任意）</span>
+      <input type="text" id="a-venue" placeholder="例：新宿ロフト">
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-gray" onclick="close_('add-overlay')">キャンセル</button>
+      <button class="btn btn-green" onclick="submitAdd()">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail modal -->
+<div class="overlay" id="detail-overlay">
+  <div class="modal">
+    <div class="modal-head" id="detail-head" style="background:#00B900">
+      <h2 id="detail-title">ライブ詳細</h2>
+      <button class="x" onclick="close_('detail-overlay')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="live-meta" id="detail-meta"></div>
+      <div class="section-title">📋 タスク</div>
+      <div id="detail-tasks"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-red" onclick="doDelete()">🗑️ 削除</button>
+      <button class="btn btn-gray" onclick="openEdit()">✏️ 編集</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div class="overlay" id="edit-overlay">
+  <div class="modal">
+    <div class="modal-head" style="background:#4A90D9">
+      <h2>✏️ ライブを編集</h2>
+      <button class="x" onclick="close_('edit-overlay')">×</button>
+    </div>
+    <div class="modal-body">
+      <span class="field-label">日付</span>
+      <input type="date" id="e-date">
+      <span class="field-label">種別</span>
+      <select id="e-type">
+        <option value="主催">主催</option>
+        <option value="主催以外">主催以外</option>
+      </select>
+      <span class="field-label">ライブ名（任意）</span>
+      <input type="text" id="e-name" placeholder="例：○○主催ライブ">
+      <span class="field-label">場所（任意）</span>
+      <input type="text" id="e-venue" placeholder="例：新宿ロフト">
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-gray" onclick="close_('edit-overlay')">キャンセル</button>
+      <button class="btn btn-blue" onclick="submitEdit()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let pw = '';
+let cal = null;
+let lives = [];
+let currentId = null;
+
+// ---- Auth ----
+async function doLogin() {
+  pw = document.getElementById('pw').value;
+  const err = document.getElementById('login-err');
+  err.textContent = '';
+  try {
+    const r = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw })
+    });
+    if (!r.ok) throw new Error();
+    sessionStorage.setItem('cpw', pw);
+    showApp();
+  } catch {
+    err.textContent = 'パスワードが違います';
+  }
+}
+
+function doLogout() {
+  sessionStorage.removeItem('cpw');
+  pw = '';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('pw').value = '';
+}
+
+// ---- API ----
+async function req(method, path, body) {
+  const r = await fetch('/api' + path, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'X-Password': pw },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'エラー'); }
+  return r.json();
+}
+
+// ---- Calendar ----
+function today() {
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
+}
+
+function fmtDate(s) {
+  const [y, m, d] = s.split('-');
+  return `${y}年${parseInt(m)}月${parseInt(d)}日`;
+}
+
+function eventColor(live) {
+  const t = today();
+  if (!live.tasks || !live.tasks.length) return '#00B900';
+  if (live.tasks.every(t => t.is_done)) return '#888888';
+  if (live.tasks.some(t => !t.is_done && t.deadline < t)) return '#FF4444';
+  // need to pass today separately - fix:
+  const td = today();
+  if (live.tasks.some(tk => !tk.is_done && tk.deadline < td)) return '#FF4444';
+  return '#00B900';
+}
+
+function toEvents(ls) {
+  return ls.map(l => {
+    const td = today();
+    let color = '#00B900';
+    if (l.tasks && l.tasks.length) {
+      if (l.tasks.every(t => t.is_done)) color = '#888888';
+      else if (l.tasks.some(t => !t.is_done && t.deadline < td)) color = '#FF4444';
+    }
+    return {
+      id: String(l.id),
+      title: l.name || (l.type === '主催' ? '主催ライブ' : '対バン'),
+      date: l.date,
+      backgroundColor: color,
+      borderColor: color,
+      extendedProps: { live: l }
+    };
+  });
+}
+
+async function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  lives = await req('GET', '/lives');
+  if (cal) { cal.destroy(); cal = null; }
+  cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
+    locale: 'ja',
+    initialView: 'dayGridMonth',
+    headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
+    height: 'auto',
+    events: toEvents(lives),
+    dateClick(info) { openAdd(info.dateStr); },
+    eventClick(info) { openDetail(info.event.extendedProps.live); }
+  });
+  cal.render();
+}
+
+async function refresh() {
+  lives = await req('GET', '/lives');
+  cal.removeAllEvents();
+  toEvents(lives).forEach(e => cal.addEvent(e));
+}
+
+// ---- Add ----
+function openAdd(dateStr) {
+  document.getElementById('a-date').value = dateStr || today();
+  document.getElementById('a-type').value = '主催';
+  document.getElementById('a-name').value = '';
+  document.getElementById('a-venue').value = '';
+  open_('add-overlay');
+}
+
+async function submitAdd() {
+  const date = document.getElementById('a-date').value;
+  if (!date) { alert('日付を選んでください'); return; }
+  try {
+    await req('POST', '/lives', {
+      date,
+      type: document.getElementById('a-type').value,
+      name: document.getElementById('a-name').value.trim(),
+      venue: document.getElementById('a-venue').value.trim()
+    });
+    close_('add-overlay');
+    await refresh();
+  } catch (e) { alert('登録に失敗しました: ' + e.message); }
+}
+
+// ---- Detail ----
+function openDetail(live) {
+  currentId = live.id;
+  const td = today();
+  const hasOver = (live.tasks || []).some(t => !t.is_done && t.deadline < td);
+  document.getElementById('detail-head').style.background = hasOver ? '#FF4444' : '#00B900';
+  document.getElementById('detail-title').textContent = live.name || fmtDate(live.date);
+
+  const done = (live.tasks || []).filter(t => t.is_done).length;
+  let meta = `<p>📅 <strong>${fmtDate(live.date)}</strong></p>`;
+  meta += `<p>🎵 ${live.type}</p>`;
+  if (live.venue) meta += `<p>📍 ${live.venue}</p>`;
+  meta += `<p>✅ 完了: ${done} / ${(live.tasks || []).length} 件</p>`;
+  document.getElementById('detail-meta').innerHTML = meta;
+
+  const el = document.getElementById('detail-tasks');
+  el.innerHTML = '';
+  (live.tasks || []).forEach(task => {
+    const over = !task.is_done && task.deadline < td;
+    const div = document.createElement('div');
+    div.className = 'task-item';
+    div.innerHTML = `
+      <input type="checkbox" ${task.is_done ? 'checked' : ''} onchange="toggleTask(${task.id},this.checked,${live.id})">
+      <div class="task-info">
+        <div class="task-name ${task.is_done ? 'done' : over ? 'over' : ''}">${task.name}</div>
+        <div class="task-dl ${over ? 'over' : ''}">期限: ${fmtDate(task.deadline)}</div>
+      </div>`;
+    el.appendChild(div);
+  });
+
+  open_('detail-overlay');
+}
+
+async function toggleTask(taskId, isDone, liveId) {
+  try {
+    await req('PUT', `/tasks/${taskId}/done`, { is_done: isDone });
+    lives = await req('GET', '/lives');
+    const live = lives.find(l => l.id === liveId);
+    if (live) openDetail(live);
+    cal.removeAllEvents();
+    toEvents(lives).forEach(e => cal.addEvent(e));
+  } catch { alert('更新に失敗しました'); }
+}
+
+async function doDelete() {
+  if (!confirm('このライブとタスクをすべて削除しますか？')) return;
+  try {
+    await req('DELETE', `/lives/${currentId}`);
+    close_('detail-overlay');
+    await refresh();
+  } catch { alert('削除に失敗しました'); }
+}
+
+// ---- Edit ----
+function openEdit() {
+  const live = lives.find(l => l.id === currentId);
+  if (!live) return;
+  close_('detail-overlay');
+  document.getElementById('e-date').value = live.date;
+  document.getElementById('e-type').value = live.type;
+  document.getElementById('e-name').value = live.name || '';
+  document.getElementById('e-venue').value = live.venue || '';
+  open_('edit-overlay');
+}
+
+async function submitEdit() {
+  try {
+    await req('PUT', `/lives/${currentId}`, {
+      date: document.getElementById('e-date').value,
+      type: document.getElementById('e-type').value,
+      name: document.getElementById('e-name').value.trim(),
+      venue: document.getElementById('e-venue').value.trim()
+    });
+    close_('edit-overlay');
+    await refresh();
+  } catch (e) { alert('更新に失敗しました: ' + e.message); }
+}
+
+// ---- Modal helpers ----
+function open_(id)  { document.getElementById(id).classList.add('open'); }
+function close_(id) { document.getElementById(id).classList.remove('open'); }
+
+// Auto-login
+window.addEventListener('load', () => {
+  const saved = sessionStorage.getItem('cpw');
+  if (saved) { pw = saved; document.getElementById('pw').value = saved; doLogin(); }
+});
+</script>
+</body>
+</html>
