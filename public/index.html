@@ -39,6 +39,24 @@
     }
     #calendar-wrap { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
 
+    /* ---- Portal Links ---- */
+    #portal-links {
+      display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .portal-card {
+      display: flex; align-items: center; gap: 14px;
+      background: #fff; border-radius: 14px; padding: 16px 20px;
+      text-decoration: none; color: #333;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+      flex: 1; min-width: 200px;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .portal-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+    .portal-card[data-soon="true"] { opacity: .5; cursor: default; pointer-events: none; }
+    .portal-icon { font-size: 28px; line-height: 1; }
+    .portal-title { font-size: 15px; font-weight: 700; }
+    .portal-sub { font-size: 12px; color: #999; margin-top: 2px; }
+
     /* ---- Legend ---- */
     .legend {
       display: flex; gap: 14px; margin-bottom: 12px; flex-wrap: wrap;
@@ -116,6 +134,24 @@
     <h1>🎵 バンドライブカレンダー</h1>
     <button onclick="doLogout()">ログアウト</button>
   </header>
+  <!-- ポータルリンク -->
+  <div id="portal-links">
+    <a class="portal-card" href="#" target="_blank" data-soon="true">
+      <div class="portal-icon">🛒</div>
+      <div class="portal-info">
+        <div class="portal-title">物販売り上げシステム</div>
+        <div class="portal-sub">Coming soon</div>
+      </div>
+    </a>
+    <a class="portal-card" href="https://sustaining-yarrow-939.notion.site/Admin-1b56a6cef79f8032baddc405f2836d03" target="_blank">
+      <div class="portal-icon">📋</div>
+      <div class="portal-info">
+        <div class="portal-title">タスク一覧</div>
+        <div class="portal-sub">Notion</div>
+      </div>
+    </a>
+  </div>
+
   <div id="calendar-wrap">
     <div class="legend">
       <span class="legend-item"><span class="dot" style="background:#00B900"></span>問題なし</span>
