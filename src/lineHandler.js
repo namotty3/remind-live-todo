@@ -12,6 +12,11 @@ function getChatId(source) {
   return source.userId;
 }
 
+// どのチャットから操作しても共通のIDでデータを共有する
+function sharedId(chatId) {
+  return process.env.CALENDAR_CHAT_ID || chatId;
+}
+
 function formatDate(dateStr) {
   const [y, m, d] = dateStr.split('-');
   return `${y}年${parseInt(m)}月${parseInt(d)}日`;
@@ -591,7 +596,7 @@ function buildEditMenu(live) {
 async function handleAddLive(dateStr, liveType, liveName, liveVenue, description, flyerUrl, notes, setlist, userId, reply) {
   const { data: live, error } = await supabase
     .from('lives')
-    .insert({ date: dateStr, type: liveType, name: liveName || null, venue: liveVenue || null, description: description || null, flyer_url: flyerUrl || null, notes: notes || null, setlist: setlist || null, user_id: userId })
+    .insert({ date: dateStr, type: liveType, name: liveName || null, venue: liveVenue || null, description: description || null, flyer_url: flyerUrl || null, notes: notes || null, setlist: setlist || null, user_id: sharedId(userId) })
     .select()
     .single();
 
@@ -623,13 +628,13 @@ async function handleListLives(userId, reply) {
 
   // 今日以降のライブを最大10件取得（カルーセル上限）
   const { data: upcoming } = await supabase
-    .from('lives').select('*').eq('user_id', userId)
+    .from('lives').select('*').eq('user_id', sharedId(userId))
     .gte('date', today).order('date').limit(10);
 
   // 0件の場合は直近の過去ライブを最大10件表示
   const lives = (upcoming && upcoming.length > 0)
     ? upcoming
-    : (await supabase.from('lives').select('*').eq('user_id', userId)
+    : (await supabase.from('lives').select('*').eq('user_id', sharedId(userId))
         .lt('date', today).order('date', { ascending: false }).limit(10)).data;
 
   if (!lives || lives.length === 0) {
@@ -641,7 +646,7 @@ async function handleListLives(userId, reply) {
 }
 
 async function handleShowTasks(liveId, userId, reply) {
-  const { data: live } = await supabase.from('lives').select('*').eq('id', liveId).eq('user_id', userId).single();
+  const { data: live } = await supabase.from('lives').select('*').eq('id', liveId).eq('user_id', sharedId(userId)).single();
   if (!live) return reply({ type: 'text', text: '❌ ライブが見つかりません。' });
 
   const { data: tasks } = await supabase.from('tasks').select('*').eq('live_id', liveId).order('deadline');
@@ -653,7 +658,7 @@ async function handleCheck(taskId, userId, reply) {
     .from('tasks')
     .select('*, lives!inner(user_id, date, type, name, venue, description, flyer_url, setlist, notes)')
     .eq('id', taskId)
-    .eq('lives.user_id', userId)
+    .eq('lives.user_id', sharedId(userId))
     .single();
 
   if (!task) return reply({ type: 'text', text: '❌ タスクが見つかりません。' });
@@ -675,7 +680,7 @@ async function handleUncheck(taskId, userId, reply) {
     .from('tasks')
     .select('*, lives!inner(user_id, date, type, name, venue, description, flyer_url, setlist, notes)')
     .eq('id', taskId)
-    .eq('lives.user_id', userId)
+    .eq('lives.user_id', sharedId(userId))
     .single();
 
   if (!task) return reply({ type: 'text', text: '❌ タスクが見つかりません。' });
@@ -692,7 +697,7 @@ async function handleUncheck(taskId, userId, reply) {
 }
 
 async function handleEditLive(liveId, userId, reply) {
-  const { data: live } = await supabase.from('lives').select('*').eq('id', liveId).eq('user_id', userId).single();
+  const { data: live } = await supabase.from('lives').select('*').eq('id', liveId).eq('user_id', sharedId(userId)).single();
   if (!live) return reply({ type: 'text', text: '❌ ライブが見つかりません。' });
   return reply(buildEditMenu(live));
 }
@@ -702,7 +707,7 @@ async function handleUpdateLiveField(liveId, fields, userId, reply) {
     .from('lives')
     .update(fields)
     .eq('id', liveId)
-    .eq('user_id', userId)
+    .eq('user_id', sharedId(userId))
     .select()
     .single();
 
@@ -721,7 +726,7 @@ async function handleStartAddEvent(userId, reply) {
 async function handleAddEvent(title, dateStr, location, userId, reply) {
   const { error } = await supabase
     .from('events')
-    .insert({ title, date: dateStr, location: location || null, user_id: userId });
+    .insert({ title, date: dateStr, location: location || null, user_id: sharedId(userId) });
 
   if (error) return reply({ type: 'text', text: '❌ 登録に失敗しました。' });
 
@@ -735,7 +740,7 @@ async function handleListEvents(userId, reply) {
   const { data: events } = await supabase
     .from('events')
     .select('*')
-    .eq('user_id', userId)
+    .eq('user_id', sharedId(userId))
     .gte('date', today)
     .order('date')
     .limit(10);
@@ -755,7 +760,7 @@ async function handleListEvents(userId, reply) {
 
 async function handleListLivesForDelete(userId, reply) {
   const today = todayJST();
-  const { data: lives } = await supabase.from('lives').select('*').eq('user_id', userId).order('date').limit(10);
+  const { data: lives } = await supabase.from('lives').select('*').eq('user_id', sharedId(userId)).order('date').limit(10);
   if (!lives || lives.length === 0) return reply({ type: 'text', text: '📭 登録済みライブはありません。' });
 
   const { data: tasks } = await supabase.from('tasks').select('*').in('live_id', lives.map((l) => l.id));
@@ -788,7 +793,7 @@ async function handleListLivesForDelete(userId, reply) {
 }
 
 async function handleConfirmDelete(liveId, userId, reply) {
-  const { data: live } = await supabase.from('lives').select('*').eq('id', liveId).eq('user_id', userId).single();
+  const { data: live } = await supabase.from('lives').select('*').eq('id', liveId).eq('user_id', sharedId(userId)).single();
   if (!live) return reply({ type: 'text', text: '❌ ライブが見つかりません。' });
 
   const label = live.name || formatDate(live.date);
@@ -822,7 +827,7 @@ async function handleConfirmDelete(liveId, userId, reply) {
 }
 
 async function handleDeleteLive(liveId, userId, reply) {
-  const { data: live } = await supabase.from('lives').select('*').eq('id', liveId).eq('user_id', userId).single();
+  const { data: live } = await supabase.from('lives').select('*').eq('id', liveId).eq('user_id', sharedId(userId)).single();
   if (!live) return reply({ type: 'text', text: '❌ ライブが見つかりません。' });
 
   await supabase.from('lives').delete().eq('id', liveId);
