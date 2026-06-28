@@ -109,9 +109,21 @@ async function handleSessionInput(session, text, chatId, reply) {
 
   if (session.step === 'awaiting_flyer') {
     const flyer_url = isSkip ? null : text;
-    const { date, type, name, venue, description } = session.data;
+    await setSession(chatId, 'awaiting_notes', { ...session.data, flyer_url });
+    return reply({
+      type: 'text',
+      text: '📌 その他メモを入力してください（任意）\n例：物販準備、集合時間など',
+      quickReply: {
+        items: [{ type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } }]
+      }
+    });
+  }
+
+  if (session.step === 'awaiting_notes') {
+    const notes = isSkip ? null : text;
+    const { date, type, name, venue, description, flyer_url } = session.data;
     await clearSession(chatId);
-    return handleAddLive(date, type, name, venue, description, flyer_url, chatId, reply);
+    return handleAddLive(date, type, name, venue, description, flyer_url, notes, null, chatId, reply);
   }
 
   if (session.step === 'event_title') {
@@ -152,6 +164,13 @@ async function handleSessionInput(session, text, chatId, reply) {
     const newVal = (isSkip || text === 'クリア') ? null : text;
     await clearSession(chatId);
     return handleUpdateLiveField(live_id, { flyer_url: newVal }, chatId, reply);
+  }
+
+  if (session.step === 'editing_notes') {
+    const { live_id } = session.data;
+    const newVal = (isSkip || text === 'クリア') ? null : text;
+    await clearSession(chatId);
+    return handleUpdateLiveField(live_id, { notes: newVal }, chatId, reply);
   }
 }
 
@@ -226,6 +245,12 @@ async function handlePostback(event, client) {
     const liveId = parseInt(params.get('live_id'));
     await setSession(userId, 'editing_flyer', { live_id: liveId });
     return reply({ type: 'text', text: '🖼️ フライヤー画像URLを入力してください\n（「クリア」で削除）', quickReply: { items: [{ type: 'action', action: { type: 'message', label: 'クリア', text: 'クリア' } }, { type: 'action', action: { type: 'message', label: 'キャンセル', text: 'キャンセル' } }] } });
+  }
+
+  if (action === 'edit_notes') {
+    const liveId = parseInt(params.get('live_id'));
+    await setSession(userId, 'editing_notes', { live_id: liveId });
+    return reply({ type: 'text', text: '📌 その他メモを入力してください\n（「クリア」で削除）', quickReply: { items: [{ type: 'action', action: { type: 'message', label: 'クリア', text: 'クリア' } }, { type: 'action', action: { type: 'message', label: 'キャンセル', text: 'キャンセル' } }] } });
   }
 
   if (action === 'set_event_date') {
@@ -396,6 +421,13 @@ function buildTaskFlex(live, tasks) {
   if (live.description) {
     bodyContents.push({ type: 'box', layout: 'vertical', backgroundColor: '#f5f5f5', cornerRadius: 'sm', paddingAll: 'sm', margin: 'md', contents: [{ type: 'text', text: `📝 ${live.description}`, size: 'sm', color: '#666666', wrap: true }] });
   }
+  if (live.setlist) {
+    const songs = live.setlist.split(',').map((s, i) => `${i + 1}. ${s.trim()}`).join('\n');
+    bodyContents.push({ type: 'box', layout: 'vertical', backgroundColor: '#f0f8ff', cornerRadius: 'sm', paddingAll: 'sm', margin: 'md', contents: [{ type: 'text', text: '🎵 セトリ', size: 'xs', color: '#4A90D9', weight: 'bold' }, { type: 'text', text: songs, size: 'sm', color: '#333333', wrap: true, margin: 'sm' }] });
+  }
+  if (live.notes) {
+    bodyContents.push({ type: 'text', text: `📌 ${live.notes}`, size: 'sm', color: '#666666', wrap: true, margin: 'md' });
+  }
   bodyContents.push(...taskItems);
   if (live.flyer_url) {
     bodyContents.push({ type: 'button', action: { type: 'uri', label: '🖼️ フライヤーを見る', uri: live.flyer_url }, style: 'secondary', margin: 'lg' });
@@ -517,6 +549,7 @@ function buildEditMenu(live) {
           pb('📍 場所を変更',     'edit_venue'),
           pb('📝 詳細を変更',     'edit_description'),
           pb('🖼️ フライヤーURLを変更', 'edit_flyer'),
+          pb('📌 その他メモを変更',   'edit_notes'),
         ]
       }
     }
@@ -525,10 +558,10 @@ function buildEditMenu(live) {
 
 // ---- コアハンドラー ----
 
-async function handleAddLive(dateStr, liveType, liveName, liveVenue, description, flyerUrl, userId, reply) {
+async function handleAddLive(dateStr, liveType, liveName, liveVenue, description, flyerUrl, notes, setlist, userId, reply) {
   const { data: live, error } = await supabase
     .from('lives')
-    .insert({ date: dateStr, type: liveType, name: liveName || null, venue: liveVenue || null, description: description || null, flyer_url: flyerUrl || null, user_id: userId })
+    .insert({ date: dateStr, type: liveType, name: liveName || null, venue: liveVenue || null, description: description || null, flyer_url: flyerUrl || null, notes: notes || null, setlist: setlist || null, user_id: userId })
     .select()
     .single();
 
@@ -552,7 +585,7 @@ async function handleAddLiveText(text, userId, reply) {
   const [, dateStr, liveType] = parts;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return reply({ type: 'text', text: '❌ 日付形式: 2026-09-15' });
   if (!['主催', '主催以外'].includes(liveType)) return reply({ type: 'text', text: '❌ 種別は「主催」または「主催以外」' });
-  return handleAddLive(dateStr, liveType, null, null, null, null, userId, reply);
+  return handleAddLive(dateStr, liveType, null, null, null, null, null, null, userId, reply);
 }
 
 async function handleListLives(userId, reply) {
@@ -578,7 +611,7 @@ async function handleShowTasks(liveId, userId, reply) {
 async function handleCheck(taskId, userId, reply) {
   const { data: task } = await supabase
     .from('tasks')
-    .select('*, lives!inner(user_id, date, type, name, venue, description, flyer_url)')
+    .select('*, lives!inner(user_id, date, type, name, venue, description, flyer_url, setlist, notes)')
     .eq('id', taskId)
     .eq('lives.user_id', userId)
     .single();
@@ -600,7 +633,7 @@ async function handleCheck(taskId, userId, reply) {
 async function handleUncheck(taskId, userId, reply) {
   const { data: task } = await supabase
     .from('tasks')
-    .select('*, lives!inner(user_id, date, type, name, venue, description, flyer_url)')
+    .select('*, lives!inner(user_id, date, type, name, venue, description, flyer_url, setlist, notes)')
     .eq('id', taskId)
     .eq('lives.user_id', userId)
     .single();

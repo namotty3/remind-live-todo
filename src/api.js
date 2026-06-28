@@ -1,7 +1,19 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const router = express.Router();
 const supabase = require('./database');
 const { getTasksForLive } = require('./tasks');
+
+router.get('/songs', auth, (_req, res) => {
+  try {
+    const txt = fs.readFileSync(path.join(__dirname, '..', 'Songs', 'Remind.txt'), 'utf8');
+    const songs = txt.split(',').map(s => s.trim()).filter(Boolean);
+    res.json(songs);
+  } catch {
+    res.json([]);
+  }
+});
 
 function auth(req, res, next) {
   const pw = req.headers['x-password'];
@@ -32,12 +44,12 @@ router.get('/lives', auth, async (req, res) => {
 });
 
 router.post('/lives', auth, async (req, res) => {
-  const { date, type, name, venue, description, flyer_url } = req.body;
+  const { date, type, name, venue, description, flyer_url, setlist, notes } = req.body;
   const userId = process.env.CALENDAR_CHAT_ID || 'web';
 
   const { data: live, error } = await supabase
     .from('lives')
-    .insert({ date, type, name: name || null, venue: venue || null, description: description || null, flyer_url: flyer_url || null, user_id: userId })
+    .insert({ date, type, name: name || null, venue: venue || null, description: description || null, flyer_url: flyer_url || null, setlist: setlist || null, notes: notes || null, user_id: userId })
     .select()
     .single();
 
@@ -51,7 +63,7 @@ router.post('/lives', auth, async (req, res) => {
 });
 
 router.put('/lives/:id', auth, async (req, res) => {
-  const { date, type, name, venue, description, flyer_url } = req.body;
+  const { date, type, name, venue, description, flyer_url, setlist, notes } = req.body;
   const fields = {};
   if (date !== undefined) fields.date = date;
   if (type !== undefined) fields.type = type;
@@ -59,6 +71,8 @@ router.put('/lives/:id', auth, async (req, res) => {
   if (venue !== undefined) fields.venue = venue || null;
   if (description !== undefined) fields.description = description || null;
   if (flyer_url !== undefined) fields.flyer_url = flyer_url || null;
+  if (setlist !== undefined) fields.setlist = setlist || null;
+  if (notes !== undefined) fields.notes = notes || null;
 
   const { data: live, error } = await supabase.from('lives').update(fields).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });

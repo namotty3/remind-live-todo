@@ -102,6 +102,24 @@
     .choice-btn .ct { font-weight: 700; }
     .choice-btn .cs { font-size: 12px; color: #999; }
 
+    /* ---- Setlist picker ---- */
+    .setlist-wrap { border: 2px solid #eee; border-radius: 8px; padding: 12px; margin-top: 4px; }
+    .songs-pool { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid #eee; min-height: 36px; }
+    .song-chip {
+      padding: 5px 12px; background: #e8f5e9; border: 1px solid #00B900;
+      border-radius: 20px; cursor: pointer; font-size: 13px; transition: background .1s;
+    }
+    .song-chip:hover { background: #00B900; color: #fff; }
+    .song-chip.used { background: #eee; border-color: #ccc; color: #aaa; cursor: default; }
+    .setlist-list { margin-top: 10px; }
+    .setlist-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #f5f5f5; }
+    .setlist-num { width: 22px; height: 22px; background: #00B900; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; flex-shrink: 0; }
+    .setlist-song { flex: 1; font-size: 14px; }
+    .sl-btn { padding: 2px 7px; background: #f0f0f0; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    .sl-btn:disabled { opacity: .3; cursor: default; }
+    .sl-btn.rm { background: #ffe0e0; color: #e00; }
+    .setlist-empty { font-size: 13px; color: #bbb; text-align: center; padding: 8px 0; }
+
     /* ---- Live meta / Tasks ---- */
     .live-meta { margin-bottom: 16px; }
     .live-meta p { font-size: 14px; color: #555; margin-top: 6px; }
@@ -208,6 +226,13 @@
       <input type="text" id="al-desc" placeholder="例：出演時間 19:00〜、セット30分">
       <span class="field-label">フライヤーURL（任意）</span>
       <input type="text" id="al-flyer" placeholder="https://...">
+      <span class="field-label">セトリ（任意）</span>
+      <div class="setlist-wrap">
+        <div class="songs-pool" id="al-pool"></div>
+        <div class="setlist-list" id="al-list"><p class="setlist-empty">曲をタップして追加</p></div>
+      </div>
+      <span class="field-label">その他（任意）</span>
+      <input type="text" id="al-notes" placeholder="物販準備、集合時間など">
     </div>
     <div class="modal-foot">
       <button class="btn btn-gray" onclick="close_('add-live-overlay')">キャンセル</button>
@@ -280,6 +305,13 @@
       <input type="text" id="el-desc">
       <span class="field-label">フライヤーURL（任意）</span>
       <input type="text" id="el-flyer">
+      <span class="field-label">セトリ（任意）</span>
+      <div class="setlist-wrap">
+        <div class="songs-pool" id="el-pool"></div>
+        <div class="setlist-list" id="el-list"><p class="setlist-empty">曲をタップして追加</p></div>
+      </div>
+      <span class="field-label">その他（任意）</span>
+      <input type="text" id="el-notes">
     </div>
     <div class="modal-foot">
       <button class="btn btn-gray" onclick="close_('edit-live-overlay')">キャンセル</button>
@@ -332,6 +364,9 @@ let pw = '';
 let cal = null;
 let lives = [];
 let events = [];
+let allSongs = [];
+let addSetlist = [];
+let editSetlist = [];
 let currentLiveId = null;
 let currentEventId = null;
 let pendingDate = '';
@@ -410,9 +445,10 @@ async function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   try {
-    [lives, events] = await Promise.all([api('GET', '/lives'), api('GET', '/events')]);
+    [lives, events, allSongs] = await Promise.all([api('GET', '/lives'), api('GET', '/events'), api('GET', '/songs')]);
   } catch {
     try { lives = await api('GET', '/lives'); } catch { lives = []; }
+    try { allSongs = await api('GET', '/songs'); } catch { allSongs = []; }
     events = [];
   }
   if (cal) { cal.destroy(); cal = null; }
@@ -443,6 +479,50 @@ async function refresh() {
   buildCalEvents().forEach(e => cal.addEvent(e));
 }
 
+// ---- Setlist Picker ----
+function renderSetlist(prefix, sl) {
+  const pool = document.getElementById(`${prefix}-pool`);
+  const list = document.getElementById(`${prefix}-list`);
+  if (!pool || !list) return;
+
+  pool.innerHTML = '';
+  allSongs.forEach(song => {
+    const chip = document.createElement('span');
+    chip.className = 'song-chip' + (sl.includes(song) ? ' used' : '');
+    chip.textContent = song;
+    if (!sl.includes(song)) chip.onclick = () => { sl.push(song); renderSetlist(prefix, sl); };
+    pool.appendChild(chip);
+  });
+
+  list.innerHTML = '';
+  if (sl.length === 0) { list.innerHTML = '<p class="setlist-empty">曲をタップして追加</p>'; return; }
+  sl.forEach((song, i) => {
+    const div = document.createElement('div');
+    div.className = 'setlist-item';
+    div.innerHTML = `
+      <div class="setlist-num">${i + 1}</div>
+      <div class="setlist-song">${song}</div>
+      <div style="display:flex;gap:4px">
+        <button class="sl-btn" onclick="slMove('${prefix}',${i},-1)" ${i===0?'disabled':''}>↑</button>
+        <button class="sl-btn" onclick="slMove('${prefix}',${i},1)" ${i===sl.length-1?'disabled':''}>↓</button>
+        <button class="sl-btn rm" onclick="slRemove('${prefix}',${i})">×</button>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+function slMove(prefix, i, dir) {
+  const sl = prefix === 'al' ? addSetlist : editSetlist;
+  const j = i + dir;
+  if (j < 0 || j >= sl.length) return;
+  [sl[i], sl[j]] = [sl[j], sl[i]];
+  renderSetlist(prefix, sl);
+}
+function slRemove(prefix, i) {
+  const sl = prefix === 'al' ? addSetlist : editSetlist;
+  sl.splice(i, 1);
+  renderSetlist(prefix, sl);
+}
+
 // ---- Add Live ----
 function openAddLive() {
   close_('choice-modal');
@@ -452,6 +532,9 @@ function openAddLive() {
   document.getElementById('al-venue').value = '';
   document.getElementById('al-desc').value = '';
   document.getElementById('al-flyer').value = '';
+  document.getElementById('al-notes').value = '';
+  addSetlist = [];
+  renderSetlist('al', addSetlist);
   open_('add-live-overlay');
 }
 
@@ -459,7 +542,7 @@ async function submitAddLive() {
   const date = document.getElementById('al-date').value;
   if (!date) { alert('日付を選んでください'); return; }
   try {
-    await api('POST', '/lives', { date, type: document.getElementById('al-type').value, name: document.getElementById('al-name').value.trim(), venue: document.getElementById('al-venue').value.trim(), description: document.getElementById('al-desc').value.trim(), flyer_url: document.getElementById('al-flyer').value.trim() });
+    await api('POST', '/lives', { date, type: document.getElementById('al-type').value, name: document.getElementById('al-name').value.trim(), venue: document.getElementById('al-venue').value.trim(), description: document.getElementById('al-desc').value.trim(), flyer_url: document.getElementById('al-flyer').value.trim(), setlist: addSetlist.length ? addSetlist.join(',') : '', notes: document.getElementById('al-notes').value.trim() });
     close_('add-live-overlay');
     await refresh();
   } catch (e) { alert('登録に失敗しました: ' + e.message); }
@@ -498,6 +581,11 @@ function openLiveDetail(live) {
   let meta = `<p>📅 <strong>${fmtDate(live.date)}</strong></p><p>🎵 ${live.type}</p>`;
   if (live.venue) meta += `<p>📍 ${live.venue}</p>`;
   if (live.description) meta += `<p>📝 ${live.description}</p>`;
+  if (live.setlist) {
+    const songs = live.setlist.split(',').map((s,i) => `${i+1}. ${s.trim()}`).join('<br>');
+    meta += `<p style="margin-top:8px"><strong>🎵 セトリ</strong><br><span style="font-size:13px;line-height:1.8">${songs}</span></p>`;
+  }
+  if (live.notes) meta += `<p>📌 ${live.notes}</p>`;
   if (live.flyer_url) meta += `<p><a href="${live.flyer_url}" target="_blank" style="color:#4A90D9;font-size:14px">🖼️ フライヤーを見る</a></p>`;
   meta += `<p>✅ 完了: ${done} / ${(live.tasks || []).length} 件</p>`;
   document.getElementById('live-detail-meta').innerHTML = meta;
@@ -549,12 +637,15 @@ function openEditLive() {
   document.getElementById('el-venue').value = live.venue || '';
   document.getElementById('el-desc').value = live.description || '';
   document.getElementById('el-flyer').value = live.flyer_url || '';
+  document.getElementById('el-notes').value = live.notes || '';
+  editSetlist = live.setlist ? live.setlist.split(',').map(s => s.trim()).filter(Boolean) : [];
+  renderSetlist('el', editSetlist);
   open_('edit-live-overlay');
 }
 
 async function submitEditLive() {
   try {
-    await api('PUT', `/lives/${currentLiveId}`, { date: document.getElementById('el-date').value, type: document.getElementById('el-type').value, name: document.getElementById('el-name').value.trim(), venue: document.getElementById('el-venue').value.trim(), description: document.getElementById('el-desc').value.trim(), flyer_url: document.getElementById('el-flyer').value.trim() });
+    await api('PUT', `/lives/${currentLiveId}`, { date: document.getElementById('el-date').value, type: document.getElementById('el-type').value, name: document.getElementById('el-name').value.trim(), venue: document.getElementById('el-venue').value.trim(), description: document.getElementById('el-desc').value.trim(), flyer_url: document.getElementById('el-flyer').value.trim(), setlist: editSetlist.length ? editSetlist.join(',') : '', notes: document.getElementById('el-notes').value.trim() });
     close_('edit-live-overlay');
     await refresh();
   } catch (e) { alert('更新に失敗しました: ' + e.message); }

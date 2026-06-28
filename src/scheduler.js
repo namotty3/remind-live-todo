@@ -39,6 +39,11 @@ function buildLiveReminderFlex(live) {
   ];
   if (live.venue)       bodyContents.push({ type: 'text', text: `📍 ${live.venue}`,       size: 'sm', color: '#333333', margin: 'sm' });
   if (live.description) bodyContents.push({ type: 'text', text: `📝 ${live.description}`, size: 'sm', color: '#666666', margin: 'md', wrap: true });
+  if (live.setlist) {
+    const songs = live.setlist.split(',').map((s, i) => `${i + 1}. ${s.trim()}`).join('\n');
+    bodyContents.push({ type: 'text', text: `🎵 セトリ\n${songs}`, size: 'sm', color: '#333333', margin: 'md', wrap: true });
+  }
+  if (live.notes)       bodyContents.push({ type: 'text', text: `📌 ${live.notes}`,       size: 'sm', color: '#666666', margin: 'sm', wrap: true });
   if (live.flyer_url)   bodyContents.push({ type: 'button', action: { type: 'uri', label: '🖼️ フライヤーを見る', uri: live.flyer_url }, style: 'secondary', margin: 'md' });
 
   return {
