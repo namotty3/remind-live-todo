@@ -102,6 +102,17 @@
     .choice-btn .ct { font-weight: 700; }
     .choice-btn .cs { font-size: 12px; color: #999; }
 
+    /* ---- Flyer upload ---- */
+    .flyer-box {
+      border: 2px dashed #ddd; border-radius: 10px; min-height: 80px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: #aaa; font-size: 14px; transition: border-color .2s;
+      overflow: hidden; position: relative;
+    }
+    .flyer-box:hover { border-color: #00B900; }
+    .flyer-box img { width: 100%; border-radius: 8px; display: block; }
+    .flyer-clear { width: 100%; margin-top: 6px; padding: 6px; background: #ffe0e0; border: none; border-radius: 6px; color: #e00; cursor: pointer; font-size: 13px; }
+
     /* ---- Setlist picker ---- */
     .setlist-wrap { border: 2px solid #eee; border-radius: 8px; padding: 12px; margin-top: 4px; }
     .songs-pool { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid #eee; min-height: 36px; }
@@ -224,8 +235,14 @@
       <input type="text" id="al-venue" placeholder="例：新宿ロフト">
       <span class="field-label">詳細（任意）</span>
       <input type="text" id="al-desc" placeholder="例：出演時間 19:00〜、セット30分">
-      <span class="field-label">フライヤーURL（任意）</span>
-      <input type="text" id="al-flyer" placeholder="https://...">
+      <span class="field-label">フライヤー（任意）</span>
+      <input type="file" id="al-flyer-file" accept="image/*" style="display:none" onchange="uploadFlyer('al')">
+      <div class="flyer-box" id="al-flyer-box" onclick="document.getElementById('al-flyer-file').click()">
+        <span id="al-flyer-placeholder">📷 タップして画像を選択</span>
+        <img id="al-flyer-img" style="display:none">
+      </div>
+      <button class="flyer-clear" id="al-flyer-clear" style="display:none" onclick="clearFlyer('al')">🗑️ 画像を削除</button>
+      <input type="hidden" id="al-flyer-url">
       <span class="field-label">セトリ（任意）</span>
       <div class="setlist-wrap">
         <div class="songs-pool" id="al-pool"></div>
@@ -303,8 +320,14 @@
       <input type="text" id="el-venue">
       <span class="field-label">詳細（任意）</span>
       <input type="text" id="el-desc">
-      <span class="field-label">フライヤーURL（任意）</span>
-      <input type="text" id="el-flyer">
+      <span class="field-label">フライヤー（任意）</span>
+      <input type="file" id="el-flyer-file" accept="image/*" style="display:none" onchange="uploadFlyer('el')">
+      <div class="flyer-box" id="el-flyer-box" onclick="document.getElementById('el-flyer-file').click()">
+        <span id="el-flyer-placeholder">📷 タップして画像を選択</span>
+        <img id="el-flyer-img" style="display:none">
+      </div>
+      <button class="flyer-clear" id="el-flyer-clear" style="display:none" onclick="clearFlyer('el')">🗑️ 画像を削除</button>
+      <input type="hidden" id="el-flyer-url">
       <span class="field-label">セトリ（任意）</span>
       <div class="setlist-wrap">
         <div class="songs-pool" id="el-pool"></div>
@@ -479,6 +502,59 @@ async function refresh() {
   buildCalEvents().forEach(e => cal.addEvent(e));
 }
 
+// ---- Flyer Upload ----
+async function uploadFlyer(prefix) {
+  const file = document.getElementById(`${prefix}-flyer-file`).files[0];
+  if (!file) return;
+  const placeholder = document.getElementById(`${prefix}-flyer-placeholder`);
+  const img = document.getElementById(`${prefix}-flyer-img`);
+  const clearBtn = document.getElementById(`${prefix}-flyer-clear`);
+  const urlInput = document.getElementById(`${prefix}-flyer-url`);
+
+  placeholder.textContent = 'アップロード中...';
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', headers: { 'X-Password': pw }, body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed');
+    urlInput.value = data.url;
+    img.src = data.url;
+    img.style.display = 'block';
+    placeholder.style.display = 'none';
+    clearBtn.style.display = 'block';
+  } catch (e) {
+    alert('画像のアップロードに失敗しました: ' + e.message);
+    placeholder.textContent = '📷 タップして画像を選択';
+  }
+}
+
+function clearFlyer(prefix) {
+  document.getElementById(`${prefix}-flyer-file`).value = '';
+  document.getElementById(`${prefix}-flyer-url`).value = '';
+  document.getElementById(`${prefix}-flyer-img`).style.display = 'none';
+  document.getElementById(`${prefix}-flyer-img`).src = '';
+  document.getElementById(`${prefix}-flyer-placeholder`).style.display = 'block';
+  document.getElementById(`${prefix}-flyer-placeholder`).textContent = '📷 タップして画像を選択';
+  document.getElementById(`${prefix}-flyer-clear`).style.display = 'none';
+}
+
+function setFlyerPreview(prefix, url) {
+  const img = document.getElementById(`${prefix}-flyer-img`);
+  const placeholder = document.getElementById(`${prefix}-flyer-placeholder`);
+  const clearBtn = document.getElementById(`${prefix}-flyer-clear`);
+  const urlInput = document.getElementById(`${prefix}-flyer-url`);
+  if (url) {
+    urlInput.value = url;
+    img.src = url;
+    img.style.display = 'block';
+    placeholder.style.display = 'none';
+    clearBtn.style.display = 'block';
+  } else {
+    clearFlyer(prefix);
+  }
+}
+
 // ---- Setlist Picker ----
 function renderSetlist(prefix, sl) {
   const pool = document.getElementById(`${prefix}-pool`);
@@ -531,8 +607,8 @@ function openAddLive() {
   document.getElementById('al-name').value = '';
   document.getElementById('al-venue').value = '';
   document.getElementById('al-desc').value = '';
-  document.getElementById('al-flyer').value = '';
   document.getElementById('al-notes').value = '';
+  clearFlyer('al');
   addSetlist = [];
   renderSetlist('al', addSetlist);
   open_('add-live-overlay');
@@ -542,7 +618,7 @@ async function submitAddLive() {
   const date = document.getElementById('al-date').value;
   if (!date) { alert('日付を選んでください'); return; }
   try {
-    await api('POST', '/lives', { date, type: document.getElementById('al-type').value, name: document.getElementById('al-name').value.trim(), venue: document.getElementById('al-venue').value.trim(), description: document.getElementById('al-desc').value.trim(), flyer_url: document.getElementById('al-flyer').value.trim(), setlist: addSetlist.length ? addSetlist.join(',') : '', notes: document.getElementById('al-notes').value.trim() });
+    await api('POST', '/lives', { date, type: document.getElementById('al-type').value, name: document.getElementById('al-name').value.trim(), venue: document.getElementById('al-venue').value.trim(), description: document.getElementById('al-desc').value.trim(), flyer_url: document.getElementById('al-flyer-url').value, setlist: addSetlist.length ? addSetlist.join(',') : '', notes: document.getElementById('al-notes').value.trim() });
     close_('add-live-overlay');
     await refresh();
   } catch (e) { alert('登録に失敗しました: ' + e.message); }
@@ -586,7 +662,7 @@ function openLiveDetail(live) {
     meta += `<p style="margin-top:8px"><strong>🎵 セトリ</strong><br><span style="font-size:13px;line-height:1.8">${songs}</span></p>`;
   }
   if (live.notes) meta += `<p>📌 ${live.notes}</p>`;
-  if (live.flyer_url) meta += `<p><a href="${live.flyer_url}" target="_blank" style="color:#4A90D9;font-size:14px">🖼️ フライヤーを見る</a></p>`;
+  if (live.flyer_url) meta += `<p style="margin-top:8px"><img src="${live.flyer_url}" style="width:100%;border-radius:8px;cursor:pointer" onclick="window.open('${live.flyer_url}','_blank')"></p>`;
   meta += `<p>✅ 完了: ${done} / ${(live.tasks || []).length} 件</p>`;
   document.getElementById('live-detail-meta').innerHTML = meta;
 
@@ -636,8 +712,8 @@ function openEditLive() {
   document.getElementById('el-name').value = live.name || '';
   document.getElementById('el-venue').value = live.venue || '';
   document.getElementById('el-desc').value = live.description || '';
-  document.getElementById('el-flyer').value = live.flyer_url || '';
   document.getElementById('el-notes').value = live.notes || '';
+  setFlyerPreview('el', live.flyer_url || '');
   editSetlist = live.setlist ? live.setlist.split(',').map(s => s.trim()).filter(Boolean) : [];
   renderSetlist('el', editSetlist);
   open_('edit-live-overlay');
@@ -645,7 +721,7 @@ function openEditLive() {
 
 async function submitEditLive() {
   try {
-    await api('PUT', `/lives/${currentLiveId}`, { date: document.getElementById('el-date').value, type: document.getElementById('el-type').value, name: document.getElementById('el-name').value.trim(), venue: document.getElementById('el-venue').value.trim(), description: document.getElementById('el-desc').value.trim(), flyer_url: document.getElementById('el-flyer').value.trim(), setlist: editSetlist.length ? editSetlist.join(',') : '', notes: document.getElementById('el-notes').value.trim() });
+    await api('PUT', `/lives/${currentLiveId}`, { date: document.getElementById('el-date').value, type: document.getElementById('el-type').value, name: document.getElementById('el-name').value.trim(), venue: document.getElementById('el-venue').value.trim(), description: document.getElementById('el-desc').value.trim(), flyer_url: document.getElementById('el-flyer-url').value, setlist: editSetlist.length ? editSetlist.join(',') : '', notes: document.getElementById('el-notes').value.trim() });
     close_('edit-live-overlay');
     await refresh();
   } catch (e) { alert('更新に失敗しました: ' + e.message); }

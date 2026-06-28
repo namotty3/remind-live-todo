@@ -1,9 +1,22 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const multer = require('multer');
 const router = express.Router();
 const supabase = require('./database');
 const { getTasksForLive } = require('./tasks');
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
+
+router.post('/upload', auth, upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  const ext = (req.file.mimetype.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+  const filename = `${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from('flyers').upload(filename, req.file.buffer, { contentType: req.file.mimetype, upsert: true });
+  if (error) return res.status(500).json({ error: error.message });
+  const { data: { publicUrl } } = supabase.storage.from('flyers').getPublicUrl(filename);
+  res.json({ url: publicUrl });
+});
 
 router.get('/songs', auth, (_req, res) => {
   try {

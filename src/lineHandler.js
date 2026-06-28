@@ -35,12 +35,42 @@ async function clearSession(chatId) {
 // ---- メッセージイベント ----
 
 async function handleMessage(event, client) {
-  const text = event.message.text.trim();
   const userId = getChatId(event.source);
   const replyToken = event.replyToken;
-
   const reply = (messages) =>
     client.replyMessage({ replyToken, messages: Array.isArray(messages) ? messages : [messages] });
+
+  // 画像メッセージ：awaiting_flyerセッション中なら画像をアップロード
+  if (event.message.type === 'image') {
+    const session = await getSession(userId);
+    if (session && session.step === 'awaiting_flyer') {
+      let flyerUrl = null;
+      try {
+        const stream = await client.getMessageContent(event.message.id);
+        const chunks = [];
+        for await (const chunk of stream) chunks.push(chunk);
+        const buffer = Buffer.concat(chunks);
+        const filename = `${Date.now()}.jpg`;
+        const { error } = await supabase.storage.from('flyers').upload(filename, buffer, { contentType: 'image/jpeg', upsert: true });
+        if (!error) {
+          const { data: { publicUrl } } = supabase.storage.from('flyers').getPublicUrl(filename);
+          flyerUrl = publicUrl;
+        }
+      } catch (e) {
+        console.error('フライヤー画像アップロード失敗:', e.message);
+      }
+      await setSession(userId, 'awaiting_notes', { ...session.data, flyer_url: flyerUrl });
+      return reply({
+        type: 'text',
+        text: flyerUrl ? '✅ 画像を保存しました！\n📌 その他メモを入力してください（任意）' : '⚠️ 画像の保存に失敗しました。\n📌 その他メモを入力してください（任意）',
+        quickReply: { items: [{ type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } }] }
+      });
+    }
+    return;
+  }
+
+  if (event.message.type !== 'text') return;
+  const text = event.message.text.trim();
 
   // セッション中の入力を最優先で処理
   const session = await getSession(userId);
