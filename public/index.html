@@ -1258,9 +1258,10 @@ function renderSetlist(prefix, sl) {
   pool.innerHTML = '';
   allSongs.forEach(song => {
     const chip = document.createElement('span');
-    chip.className = 'song-chip' + (sl.includes(song) ? ' used' : '');
+    const isUsed = song !== 'MC' && sl.includes(song);
+    chip.className = 'song-chip' + (isUsed ? ' used' : '');
     chip.textContent = song;
-    if (!sl.includes(song)) chip.onclick = () => { sl.push(song); renderSetlist(prefix, sl); };
+    if (!isUsed) chip.onclick = () => { sl.push(song); renderSetlist(prefix, sl); };
     pool.appendChild(chip);
   });
 
