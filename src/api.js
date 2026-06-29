@@ -5,6 +5,7 @@ const multer = require('multer');
 const router = express.Router();
 const supabase = require('./database');
 const { getTasksForLive } = require('./tasks');
+const { client: lineClient } = require('./lineClient');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
@@ -197,13 +198,63 @@ router.post('/merch/sales', auth, async (req, res) => {
   const { live_id, items } = req.body; // items: [{item_id, quantity}]
   if (!live_id || !Array.isArray(items)) return res.status(400).json({ error: 'Invalid body' });
 
-  // 一度削除してから再挿入（シンプルな上書き）
+  // 一度削除してから再挿入
   await supabase.from('merch_sales').delete().eq('live_id', live_id);
   const rows = items.filter(i => i.quantity > 0).map(i => ({ live_id, item_id: i.item_id, quantity: i.quantity }));
   if (rows.length > 0) {
     const { error } = await supabase.from('merch_sales').insert(rows);
     if (error) return res.status(500).json({ error: error.message });
   }
+
+  // LINE通知
+  try {
+    const { data: live } = await supabase.from('lives').select('date, name, type').eq('id', live_id).single();
+    const { data: sales } = await supabase
+      .from('merch_sales').select('quantity, merch_items(name, price)').eq('live_id', live_id);
+
+    if (live && sales && sales.length > 0) {
+      const liveName = live.name || live.type;
+      const [y, m, d] = live.date.split('-');
+      const dateStr = `${y}年${parseInt(m)}月${parseInt(d)}日`;
+
+      let total = 0;
+      const itemLines = sales.map(s => {
+        const sub = s.quantity * s.merch_items.price;
+        total += sub;
+        return `・${s.merch_items.name}　${s.quantity}個　¥${sub.toLocaleString()}`;
+      });
+
+      // バック計算（アイテム名で照合）
+      const qty = (keyword) => {
+        const s = sales.find(s => s.merch_items.name.includes(keyword));
+        return s ? s.quantity : 0;
+      };
+      const zenin = qty('全員チェキ');
+      const anzai = 500 * qty('安西チェキ') + 250 * zenin;
+      const seiya = 500 * qty('せいやチェキ') + 250 * zenin;
+      const namo  = 500 * qty('なもチェキ')  + 250 * zenin;
+
+      const msg = [
+        `🛒 物販売上報告`,
+        `${dateStr}　${liveName}`,
+        ``,
+        itemLines.join('\n'),
+        ``,
+        `合計：¥${total.toLocaleString()}`,
+        ``,
+        `💰 バック`,
+        `安西　¥${anzai.toLocaleString()}`,
+        `せいや　¥${seiya.toLocaleString()}`,
+        `なも　¥${namo.toLocaleString()}`,
+      ].join('\n');
+
+      const to = process.env.CALENDAR_CHAT_ID;
+      if (to) await lineClient.pushMessage({ to, messages: [{ type: 'text', text: msg }] });
+    }
+  } catch (e) {
+    console.error('物販LINE通知失敗:', e.message);
+  }
+
   res.json({ ok: true });
 });
 

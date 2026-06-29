@@ -13,9 +13,7 @@ const lineConfig = {
 console.log('Channel Secret 設定済み:', !!lineConfig.channelSecret);
 console.log('Access Token 設定済み:', !!lineConfig.channelAccessToken);
 
-const client = new line.messagingApi.MessagingApiClient({
-  channelAccessToken: lineConfig.channelAccessToken,
-});
+const { client } = require('./src/lineClient');
 
 const app = express();
 
@@ -32,7 +30,7 @@ app.get('/calendar', (_req, res) => res.sendFile(path.join(__dirname, 'public', 
 app.post('/webhook', line.middleware(lineConfig), async (req, res) => {
   const results = await Promise.allSettled(
     req.body.events.map((event) => {
-      if (event.type === 'message' && event.message.type === 'text') {
+      if (event.type === 'message') {
         return handleMessage(event, client);
       }
       if (event.type === 'postback') {
