@@ -268,6 +268,38 @@ router.post('/merch/sales', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- Live Videos ----
+
+router.get('/videos', auth, async (_req, res) => {
+  const { data, error } = await supabase.from('live_videos').select('*').order('date', { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+router.post('/videos', auth, async (req, res) => {
+  const { date, live_name, venue, youtube_url, setlist, live_id } = req.body;
+  const { data, error } = await supabase.from('live_videos')
+    .insert({ date, live_name, venue: venue || null, youtube_url, setlist: setlist || null, live_id: live_id || null })
+    .select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+router.put('/videos/:id', auth, async (req, res) => {
+  const { date, live_name, venue, youtube_url, setlist, live_id } = req.body;
+  const { data, error } = await supabase.from('live_videos')
+    .update({ date, live_name, venue: venue || null, youtube_url, setlist: setlist || null, live_id: live_id || null })
+    .eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+router.delete('/videos/:id', auth, async (req, res) => {
+  const { error } = await supabase.from('live_videos').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
 // ---- Wallet ----
 
 router.get('/wallet', auth, async (_req, res) => {

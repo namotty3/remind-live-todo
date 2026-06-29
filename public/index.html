@@ -155,6 +155,29 @@
     .back-btn { padding:8px 16px; background:#f0f0f0; border:none; border-radius:8px; font-size:14px; cursor:pointer; }
     .back-btn:hover { background:#ddd; }
 
+    /* ---- Videos ---- */
+    #videos-view { display:none; }
+    .video-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; }
+    .video-card { background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.08); transition:transform .15s; }
+    .video-card:hover { transform:translateY(-2px); }
+    .video-thumb-wrap { position:relative; cursor:pointer; }
+    .video-thumb { width:100%; aspect-ratio:16/9; object-fit:cover; display:block; background:#eee; }
+    .video-play { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.25); opacity:0; transition:opacity .15s; }
+    .video-thumb-wrap:hover .video-play { opacity:1; }
+    .video-play span { font-size:48px; }
+    .video-info { padding:12px 14px; }
+    .video-date { font-size:11px; color:#aaa; margin-bottom:3px; }
+    .video-title { font-size:15px; font-weight:700; line-height:1.3; }
+    .video-venue { font-size:12px; color:#888; margin-top:3px; }
+    .video-setlist-wrap { margin-top:8px; padding-top:8px; border-top:1px solid #f0f0f0; }
+    .video-setlist-label { font-size:11px; color:#4A90D9; font-weight:700; margin-bottom:4px; }
+    .video-setlist-songs { font-size:12px; color:#555; line-height:1.8; }
+    .video-actions { display:flex; gap:6px; padding:0 14px 12px; }
+    .video-watch { flex:1; padding:8px; background:#FF0000; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer; font-weight:600; }
+    .video-edit-btn { padding:8px 12px; background:#f0f0f0; border:none; border-radius:8px; font-size:13px; cursor:pointer; }
+    .no-thumb { background:linear-gradient(135deg,#1a1a2e,#16213e); display:flex; align-items:center; justify-content:center; }
+    .no-thumb::after { content:'🎬'; font-size:40px; }
+
     /* ---- Wallet ---- */
     #wallet-view { display:none; }
     .wallet-balance { background: linear-gradient(135deg,#2c3e50,#3498db); border-radius:14px; padding:24px; color:#fff; margin-bottom:14px; text-align:center; }
@@ -229,6 +252,13 @@
 
   <!-- Portal links -->
   <div id="portal-links">
+    <a class="portal-card" href="#" onclick="showVideos();return false;">
+      <div class="portal-icon">🎬</div>
+      <div class="portal-info">
+        <div class="portal-title">過去動画アーカイブ</div>
+        <div class="portal-sub">ライブ動画・セトリ一覧</div>
+      </div>
+    </a>
     <a class="portal-card" href="#" onclick="showMerch();return false;">
       <div class="portal-icon">🛒</div>
       <div class="portal-info">
@@ -250,6 +280,17 @@
         <div class="portal-sub">Notion</div>
       </div>
     </a>
+  </div>
+
+  <!-- Videos view -->
+  <div id="videos-view">
+    <div class="merch-section">
+      <h3>🎬 過去のライブ動画
+        <button class="btn btn-green" style="margin-left:auto;padding:6px 14px;font-size:13px;flex:none" onclick="openAddVideo()">＋ 追加</button>
+        <button class="back-btn" onclick="showCalendar()">← 戻る</button>
+      </h3>
+      <div class="video-grid" id="video-grid"></div>
+    </div>
   </div>
 
   <!-- Wallet view -->
@@ -335,6 +376,40 @@
       <span class="legend-item"><span class="dot" style="background:#4A90D9"></span>予定</span>
     </div>
     <div id="calendar"></div>
+  </div>
+</div>
+
+<!-- Video add/edit modal -->
+<div class="overlay" id="video-edit-overlay">
+  <div class="modal">
+    <div class="modal-head" style="background:#c0392b">
+      <h2 id="video-modal-title">🎬 動画を追加</h2>
+      <button class="x" onclick="close_('video-edit-overlay')">×</button>
+    </div>
+    <div class="modal-body">
+      <span class="field-label">ライブ一覧から自動入力（任意）</span>
+      <select id="vl-live-select" onchange="applyLiveToVideo()">
+        <option value="">-- ライブを選択 --</option>
+      </select>
+      <span class="field-label">日付</span>
+      <input type="date" id="vl-date">
+      <span class="field-label">ライブ名</span>
+      <input type="text" id="vl-name" placeholder="例：リマフェスvol.1">
+      <span class="field-label">会場（任意）</span>
+      <input type="text" id="vl-venue" placeholder="例：心斎橋CLAPPER">
+      <span class="field-label">YouTube URL</span>
+      <input type="text" id="vl-url" placeholder="https://youtu.be/...">
+      <span class="field-label">セトリ（任意）</span>
+      <div class="setlist-wrap">
+        <div class="songs-pool" id="vl-pool"></div>
+        <div class="setlist-list" id="vl-list"><p class="setlist-empty">曲をタップして追加</p></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-gray" onclick="close_('video-edit-overlay')">キャンセル</button>
+      <button class="btn btn-red" id="video-delete-btn" style="display:none" onclick="deleteVideo()">削除</button>
+      <button class="btn btn-green" onclick="submitVideo()">保存する</button>
+    </div>
   </div>
 </div>
 
@@ -561,6 +636,9 @@ let currentEventId = null;
 let pendingDate = '';
 let merchItems = [];
 let merchQty = {};
+let videos = [];
+let vlSetlist = [];
+let currentVideoId = null;
 
 // ---- Auth ----
 async function doLogin() {
@@ -681,24 +759,13 @@ function showToast(msg) {
 }
 
 // ---- View switching ----
-function showMerch() {
-  document.getElementById('calendar-wrap').style.display = 'none';
-  document.getElementById('merch-view').style.display = 'block';
-  document.getElementById('wallet-view').style.display = 'none';
-  loadMerchView();
-}
-function showWallet() {
-  document.getElementById('calendar-wrap').style.display = 'none';
-  document.getElementById('merch-view').style.display = 'none';
-  document.getElementById('wallet-view').style.display = 'block';
-  loadWalletView();
-}
-function showCalendar() {
-  document.getElementById('merch-view').style.display = 'none';
-  document.getElementById('wallet-view').style.display = 'none';
-  document.getElementById('calendar-wrap').style.display = 'block';
-  if (cal) cal.updateSize();
-}
+const VIEWS = ['merch-view','wallet-view','videos-view','calendar-wrap'];
+function hideAllViews() { VIEWS.forEach(id => document.getElementById(id).style.display = 'none'); }
+
+function showMerch()   { hideAllViews(); document.getElementById('merch-view').style.display   = 'block'; loadMerchView(); }
+function showWallet()  { hideAllViews(); document.getElementById('wallet-view').style.display  = 'block'; loadWalletView(); }
+function showVideos()  { hideAllViews(); document.getElementById('videos-view').style.display  = 'block'; loadVideos(); }
+function showCalendar(){ hideAllViews(); document.getElementById('calendar-wrap').style.display = 'block'; if (cal) cal.updateSize(); }
 
 // ---- Wallet ----
 let walletAmountType = 'in';
@@ -767,6 +834,136 @@ async function deleteWalletEntry(id) {
   try {
     await api('DELETE', `/wallet/${id}`);
     await loadWalletView();
+  } catch (e) { alert('削除に失敗しました: ' + e.message); }
+}
+
+// ---- Videos ----
+function getYtId(url) {
+  const m = (url||'').match(/youtu\.be\/([^?&]+)/) || (url||'').match(/[?&]v=([^&]+)/);
+  return m ? m[1] : null;
+}
+
+async function loadVideos() {
+  videos = await api('GET', '/videos');
+  renderVideoGrid();
+  // ライブ選択ドロップダウンも更新
+  const sel = document.getElementById('vl-live-select');
+  sel.innerHTML = '<option value="">-- ライブを選択 --</option>';
+  [...lives].sort((a,b) => b.date.localeCompare(a.date)).forEach(l => {
+    const o = document.createElement('option');
+    o.value = l.id;
+    o.textContent = `${l.date}　${l.name || l.type}${l.venue ? '　'+l.venue : ''}`;
+    sel.appendChild(o);
+  });
+}
+
+function renderVideoGrid() {
+  const el = document.getElementById('video-grid');
+  if (!videos.length) {
+    el.innerHTML = '<p style="color:#aaa;text-align:center;padding:24px;grid-column:1/-1">動画が登録されていません</p>';
+    return;
+  }
+  el.innerHTML = videos.map(v => {
+    const ytId = getYtId(v.youtube_url);
+    const thumb = ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : null;
+    const [y,m,d] = v.date.split('-');
+    const dateStr = `${y}年${parseInt(m)}月${parseInt(d)}日`;
+    const songs = v.setlist ? v.setlist.split(',').map((s,i)=>`<span style="margin-right:8px">${i+1}. ${s.trim()}</span>`).join('') : '';
+    return `
+    <div class="video-card">
+      <div class="video-thumb-wrap" onclick="window.open('${v.youtube_url}','_blank')">
+        ${thumb
+          ? `<img class="video-thumb" src="${thumb}" alt="" loading="lazy">`
+          : `<div class="video-thumb no-thumb" style="aspect-ratio:16/9"></div>`}
+        <div class="video-play"><span>▶</span></div>
+      </div>
+      <div class="video-info">
+        <div class="video-date">${dateStr}</div>
+        <div class="video-title">${v.live_name}</div>
+        ${v.venue ? `<div class="video-venue">📍 ${v.venue}</div>` : ''}
+        ${songs ? `<div class="video-setlist-wrap"><div class="video-setlist-label">🎵 セトリ</div><div class="video-setlist-songs">${songs}</div></div>` : ''}
+      </div>
+      <div class="video-actions">
+        <button class="video-watch" onclick="window.open('${v.youtube_url}','_blank')">▶ YouTube で見る</button>
+        <button class="video-edit-btn" onclick="openEditVideo(${v.id})">✏️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function applyLiveToVideo() {
+  const liveId = document.getElementById('vl-live-select').value;
+  if (!liveId) return;
+  const live = lives.find(l => l.id == liveId);
+  if (!live) return;
+  document.getElementById('vl-date').value = live.date;
+  document.getElementById('vl-name').value = live.name || '';
+  document.getElementById('vl-venue').value = live.venue || '';
+  vlSetlist = live.setlist ? live.setlist.split(',').map(s=>s.trim()).filter(Boolean) : [];
+  renderSetlist('vl', vlSetlist);
+}
+
+function openAddVideo() {
+  currentVideoId = null;
+  document.getElementById('video-modal-title').textContent = '🎬 動画を追加';
+  document.getElementById('video-delete-btn').style.display = 'none';
+  document.getElementById('vl-live-select').value = '';
+  document.getElementById('vl-date').value = '';
+  document.getElementById('vl-name').value = '';
+  document.getElementById('vl-venue').value = '';
+  document.getElementById('vl-url').value = '';
+  vlSetlist = [];
+  renderSetlist('vl', vlSetlist);
+  open_('video-edit-overlay');
+}
+
+function openEditVideo(id) {
+  const v = videos.find(v => v.id === id);
+  if (!v) return;
+  currentVideoId = id;
+  document.getElementById('video-modal-title').textContent = '🎬 動画を編集';
+  document.getElementById('video-delete-btn').style.display = 'block';
+  document.getElementById('vl-live-select').value = v.live_id || '';
+  document.getElementById('vl-date').value = v.date;
+  document.getElementById('vl-name').value = v.live_name;
+  document.getElementById('vl-venue').value = v.venue || '';
+  document.getElementById('vl-url').value = v.youtube_url;
+  vlSetlist = v.setlist ? v.setlist.split(',').map(s=>s.trim()).filter(Boolean) : [];
+  renderSetlist('vl', vlSetlist);
+  open_('video-edit-overlay');
+}
+
+async function submitVideo() {
+  const date = document.getElementById('vl-date').value;
+  const live_name = document.getElementById('vl-name').value.trim();
+  const youtube_url = document.getElementById('vl-url').value.trim();
+  if (!date) { alert('日付を入力してください'); return; }
+  if (!live_name) { alert('ライブ名を入力してください'); return; }
+  if (!youtube_url) { alert('YouTube URLを入力してください'); return; }
+  const body = {
+    date, live_name,
+    venue: document.getElementById('vl-venue').value.trim(),
+    youtube_url,
+    setlist: vlSetlist.length ? vlSetlist.join(',') : '',
+    live_id: document.getElementById('vl-live-select').value || null
+  };
+  try {
+    if (currentVideoId) {
+      await api('PUT', `/videos/${currentVideoId}`, body);
+    } else {
+      await api('POST', '/videos', body);
+    }
+    close_('video-edit-overlay');
+    await loadVideos();
+  } catch (e) { alert('保存に失敗しました: ' + e.message); }
+}
+
+async function deleteVideo() {
+  if (!confirm('この動画を削除しますか？')) return;
+  try {
+    await api('DELETE', `/videos/${currentVideoId}`);
+    close_('video-edit-overlay');
+    await loadVideos();
   } catch (e) { alert('削除に失敗しました: ' + e.message); }
 }
 
