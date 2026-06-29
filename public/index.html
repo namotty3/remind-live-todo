@@ -191,7 +191,7 @@
     .wallet-del { background:none; border:none; color:#ccc; font-size:18px; cursor:pointer; padding:0; line-height:1; }
     .wallet-del:hover { color:#FF4444; }
     .wallet-auto { background:#f0f8ff; }
-    .type-toggle { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:4px; }
+    .type-toggle { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px; }
     .type-card {
       padding:14px 8px; border:2px solid #eee; border-radius:12px;
       background:#fafafa; cursor:pointer; text-align:center; transition:all .15s;
@@ -202,10 +202,18 @@
     .type-card.active-in  .tc-label { color:#00B900; }
     .type-card.active-out { border-color:#FF4444; background:#fff0f0; }
     .type-card.active-out .tc-label { color:#FF4444; }
+    .w-form-label { display:block; font-size:12px; font-weight:700; color:#999; margin:14px 0 5px; letter-spacing:.5px; }
+    .w-form-label:first-of-type { margin-top:0; }
+    .w-input {
+      width:100%; padding:12px 14px; border:2px solid #e8e8e8;
+      border-radius:10px; font-size:15px; outline:none; background:#f9f9f9;
+      transition:border-color .15s, background .15s;
+    }
+    .w-input:focus { border-color:#4A90D9; background:#fff; }
     .w-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-    .w-input-wrap { position:relative; }
-    .w-input-wrap .w-prefix { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#888; font-size:15px; pointer-events:none; }
-    .w-input-wrap input { padding-left:26px; }
+    .w-amount-wrap { position:relative; }
+    .w-amount-wrap .w-yen { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:#555; font-size:15px; pointer-events:none; font-weight:500; }
+    .w-amount-wrap .w-input { padding-left:28px; }
 
     /* ---- Toast ---- */
     #toast {
@@ -316,23 +324,23 @@
         </div>
       </div>
 
-      <div class="w-row" style="margin-bottom:10px">
+      <div class="w-row">
         <div>
-          <span class="field-label" style="margin-top:0">日付</span>
-          <input type="date" id="w-date">
+          <span class="w-form-label">日付</span>
+          <input type="date" id="w-date" class="w-input">
         </div>
         <div>
-          <span class="field-label" style="margin-top:0">金額</span>
-          <div class="w-input-wrap">
-            <span class="w-prefix">¥</span>
-            <input type="number" id="w-amount" placeholder="0" min="0">
+          <span class="w-form-label">金額</span>
+          <div class="w-amount-wrap">
+            <span class="w-yen">¥</span>
+            <input type="number" id="w-amount" class="w-input" placeholder="0" min="0">
           </div>
         </div>
       </div>
 
-      <span class="field-label" style="margin-top:0">用途</span>
-      <input type="text" id="w-desc" placeholder="例：スタジオ代、物販仕入れ">
-      <button class="btn btn-blue" style="margin-top:14px;width:100%;font-size:16px" onclick="addWalletEntry()">追加する</button>
+      <span class="w-form-label">用途</span>
+      <input type="text" id="w-desc" class="w-input" placeholder="例：スタジオ代、物販仕入れ">
+      <button class="btn btn-blue" style="margin-top:16px;width:100%;font-size:15px;padding:13px" onclick="addWalletEntry()">追加する</button>
     </div>
 
     <div class="merch-section">
