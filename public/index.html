@@ -676,6 +676,7 @@ function showCalendar() {
   document.getElementById('merch-view').style.display = 'none';
   document.getElementById('wallet-view').style.display = 'none';
   document.getElementById('calendar-wrap').style.display = 'block';
+  if (cal) cal.updateSize();
 }
 
 // ---- Wallet ----
