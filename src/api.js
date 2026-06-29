@@ -234,6 +234,16 @@ router.post('/merch/sales', auth, async (req, res) => {
       const seiya = 500 * qty('せいやチェキ') + 250 * zenin;
       const namo  = 500 * qty('なもチェキ')  + 250 * zenin;
 
+      // ウォレット自動仕訳（再保存時は同ライブの自動仕訳を削除して再追加）
+      await supabase.from('wallet_entries').delete().eq('live_id', live_id);
+      const walletRows = [
+        { date: live.date, description: `物販売上（${liveName}）`, amount: total, live_id },
+      ];
+      if (anzai > 0) walletRows.push({ date: live.date, description: `安西バック（${liveName}）`, amount: -anzai, live_id });
+      if (seiya > 0) walletRows.push({ date: live.date, description: `せいやバック（${liveName}）`, amount: -seiya, live_id });
+      if (namo  > 0) walletRows.push({ date: live.date, description: `なもバック（${liveName}）`, amount: -namo, live_id });
+      await supabase.from('wallet_entries').insert(walletRows);
+
       const msg = [
         `🛒 物販売上報告`,
         `${dateStr}　${liveName}`,
@@ -255,6 +265,29 @@ router.post('/merch/sales', auth, async (req, res) => {
     console.error('物販LINE通知失敗:', e.message);
   }
 
+  res.json({ ok: true });
+});
+
+// ---- Wallet ----
+
+router.get('/wallet', auth, async (_req, res) => {
+  const { data, error } = await supabase.from('wallet_entries').select('*').order('date', { ascending: false }).order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+router.post('/wallet', auth, async (req, res) => {
+  const { date, description, amount, live_id } = req.body;
+  const { data, error } = await supabase.from('wallet_entries')
+    .insert({ date, description, amount, live_id: live_id || null })
+    .select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+router.delete('/wallet/:id', auth, async (req, res) => {
+  const { error } = await supabase.from('wallet_entries').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
 });
 
