@@ -6,6 +6,7 @@ const router = express.Router();
 const supabase = require('./database');
 const { getTasksForLive } = require('./tasks');
 const { client: lineClient } = require('./lineClient');
+const { checkAndNotify } = require('./scheduler');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
@@ -321,6 +322,16 @@ router.delete('/wallet/:id', auth, async (req, res) => {
   const { error } = await supabase.from('wallet_entries').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
+});
+
+// 手動トリガー（テスト用）
+router.post('/debug/notify', auth, async (_req, res) => {
+  try {
+    await checkAndNotify();
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 module.exports = router;

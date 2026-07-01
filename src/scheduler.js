@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const supabase = require('./database');
+const { client } = require('./lineClient');
 
 function todayJST() {
   const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
@@ -21,15 +22,17 @@ function formatDate(dateStr) {
   return `${y}年${parseInt(m)}月${parseInt(d)}日`;
 }
 
-function initScheduler(client) {
-  cron.schedule('0 0 * * *', () => checkAndNotify(client));
+function initScheduler() {
+  cron.schedule('0 0 * * *', () => checkAndNotify());
   console.log('スケジューラー起動（毎日9:00 JST）');
 }
 
-async function checkAndNotify(client) {
-  await notifyOverdueTasks(client);
-  await notifyTomorrowEvents(client);
-  await notifyUpcomingLives(client);
+async function checkAndNotify() {
+  console.log(`[${new Date().toISOString()}] checkAndNotify 開始`);
+  await notifyOverdueTasks();
+  await notifyTomorrowEvents();
+  await notifyUpcomingLives();
+  console.log(`[${new Date().toISOString()}] checkAndNotify 完了`);
 }
 
 function buildLiveReminderFlex(live) {
@@ -63,7 +66,7 @@ function buildLiveReminderFlex(live) {
   };
 }
 
-async function notifyUpcomingLives(client) {
+async function notifyUpcomingLives() {
   const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
   jst.setDate(jst.getDate() + 2);
   const twoDaysLater = jst.toISOString().split('T')[0];
@@ -90,10 +93,11 @@ async function notifyUpcomingLives(client) {
   }
 }
 
-async function notifyOverdueTasks(client) {
+async function notifyOverdueTasks() {
   const today = todayJST();
+  // ISO形式（Tあり）でないとSupabaseの.or()フィルターが壊れる
   const twoDaysAgo = new Date(Date.now() + 9 * 60 * 60 * 1000 - 2 * 24 * 60 * 60 * 1000);
-  const twoDaysAgoStr = twoDaysAgo.toISOString().replace('T', ' ').split('.')[0];
+  const twoDaysAgoStr = twoDaysAgo.toISOString();
 
   const { data: overdueTasks, error } = await supabase
     .from('tasks')
@@ -102,7 +106,12 @@ async function notifyOverdueTasks(client) {
     .lt('deadline', today)
     .or(`last_notified.is.null,last_notified.lte.${twoDaysAgoStr}`);
 
-  if (error || !overdueTasks || overdueTasks.length === 0) return;
+  if (error) {
+    console.error('overdueTasks クエリエラー:', error.message);
+    return;
+  }
+  console.log(`overdueTasks 件数: ${overdueTasks ? overdueTasks.length : 0}`);
+  if (!overdueTasks || overdueTasks.length === 0) return;
 
   const byUser = {};
   for (const task of overdueTasks) {
@@ -131,14 +140,14 @@ async function notifyOverdueTasks(client) {
     try {
       await client.pushMessage({ to: userId, messages: [{ type: 'text', text: msg }] });
       const notifiedIds = overdueTasks.filter((t) => t.lives.user_id === userId).map((t) => t.id);
-      await supabase.from('tasks').update({ last_notified: now }).in('id', notifiedIds);
+      await supabase.from('tasks').update({ last_notified: new Date().toISOString() }).in('id', notifiedIds);
     } catch (err) {
       console.error(`通知失敗 userId=${userId}:`, err.message);
     }
   }
 }
 
-async function notifyTomorrowEvents(client) {
+async function notifyTomorrowEvents() {
   const tomorrow = tomorrowJST();
 
   const { data: events, error } = await supabase

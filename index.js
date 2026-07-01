@@ -56,5 +56,5 @@ app.get('/', (_req, res) => res.json({ status: 'ok' }));
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`サーバー起動 → http://localhost:${PORT}`);
-  initScheduler(client);
+  initScheduler();
 });
