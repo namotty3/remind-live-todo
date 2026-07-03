@@ -1298,94 +1298,13 @@ function setFlyerPreview(prefix, url) {
 const MOOD_COLOR = { H: '#FF6B35', M: '#4ECDC4', S: '#9B59B6' };
 const JF = '"Hiragino Sans","Yu Gothic","Meiryo",sans-serif';
 
-function drawMicStand(ctx, cx, topY) {
-  ctx.strokeStyle = '#444';
-  ctx.lineWidth = 1.2;
-  // Mic head (small oval)
-  ctx.beginPath();
-  ctx.ellipse(cx, topY + 7, 6, 8, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  // Stand
-  ctx.beginPath();
-  ctx.moveTo(cx, topY + 15);
-  ctx.lineTo(cx, topY + 30);
-  ctx.stroke();
-  // Base (angled feet)
-  ctx.beginPath();
-  ctx.moveTo(cx - 9, topY + 30);
-  ctx.lineTo(cx + 9, topY + 30);
-  ctx.stroke();
-}
-
-function drawStageDiagram(ctx, sx, sy, sw, sh, drumPattern) {
-  ctx.save();
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(sx, sy, sw, sh);
-
-  // PA equipment box (top-left)
-  const paX = sx + 18, paY = sy + 16, paW = 90, paH = 50;
-  ctx.strokeStyle = '#333';
-  ctx.strokeRect(paX, paY, paW, paH);
-  ctx.fillStyle = '#222';
-  ctx.font = `9px ${JF}`;
-  ctx.textAlign = 'center';
-  ctx.fillText('zoom R8', paX + paW / 2, paY + 14);
-  ctx.fillText('同期持込', paX + paW / 2, paY + 28);
-  ctx.fillText('（モノラル）', paX + paW / 2, paY + 42);
-
-  // Drum oval — placed immediately to the right of zoom R8 box
-  if (drumPattern !== 'ドラム無し') {
-    const rx1 = 50, ry1 = 24;
-    const dCX1 = paX + paW + 16 + rx1;   // ← zoom R8右端からすぐ横
-    const dCY1 = paY + paH / 2;
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.ellipse(dCX1, dCY1, rx1, ry1, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.fillStyle = '#222';
-    ctx.font = `bold 13px ${JF}`;
-    ctx.textAlign = 'center';
-    ctx.fillText(drumPattern, dCX1, dCY1 + 5);
-
-    if (drumPattern === '2タム') {
-      // 2つ目のオーバルを右に隣接
-      const rx2 = 28, ry2 = 18;
-      const dCX2 = dCX1 + rx1 + 8 + rx2;
-      const dCY2 = dCY1;
-      ctx.beginPath();
-      ctx.ellipse(dCX2, dCY2, rx2, ry2, 0, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-  } else {
-    ctx.fillStyle = '#999';
-    ctx.font = `13px ${JF}`;
-    ctx.textAlign = 'left';
-    ctx.fillText('Dr なし', paX + paW + 20, paY + paH / 2 + 5);
-  }
-
-  // Middle row — instrument rectangles (矢印なし)
-  const ry = sy + sh * 0.50, rh = 42;
-  const positions = [
-    { label: 'Ba',    x: sx + sw * 0.10, w: 76 },
-    { label: 'Vo,Gt', x: sx + sw * 0.38, w: 84 },
-    { label: '上手Gt', x: sx + sw * 0.65, w: 76 },
-  ];
-  positions.forEach(p => {
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(p.x, ry, p.w, rh);
-    ctx.fillStyle = '#222';
-    ctx.font = `13px ${JF}`;
-    ctx.textAlign = 'center';
-    ctx.fillText(p.label, p.x + p.w / 2, ry + rh / 2 + 5);
-
-    // マイクスタンド（矩形の下）
-    drawMicStand(ctx, p.x + p.w / 2, ry + rh + 6);
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('画像読み込み失敗: ' + src));
+    img.src = src;
   });
-
-  ctx.restore();
 }
 
 function drawSetlistTable(ctx, x, y, w, sl) {
@@ -1471,10 +1390,20 @@ function drawSetlistTable(ctx, x, y, w, sl) {
   return y + ROW_H * (sl.length + 1);
 }
 
-function drawSetlistDiagram(canvas, sl, liveName, liveDate, stageTime, drumPattern) {
+async function drawSetlistDiagram(canvas, sl, liveName, liveDate, stageTime, drumPattern) {
   const W = 760;
   const PAD = 20;
-  const STAGE_H = 210;
+
+  // ステージ画像を読み込んでアスペクト比から高さを決定
+  const imgFile = drumPattern === '2タム' ? '/set/2tam.png'
+                : drumPattern === '1タム' ? '/set/1tam.png'
+                : '/set/noDrum.png';
+  let stageImg = null;
+  try { stageImg = await loadImage(imgFile); } catch(e) { console.error(e); }
+  const STAGE_W = W - PAD * 2;
+  const STAGE_H = stageImg
+    ? Math.round(stageImg.naturalHeight * STAGE_W / stageImg.naturalWidth)
+    : 210;
   const ROW_H = 28;
   const TABLE_H = ROW_H * (sl.length + 1);
   const FOOTER_H = 52;
@@ -1501,8 +1430,10 @@ function drawSetlistDiagram(canvas, sl, liveName, liveDate, stageTime, drumPatte
   ctx.textAlign = 'left';
   ctx.fillText(headerText, PAD, 34);
 
-  // Stage diagram
-  drawStageDiagram(ctx, PAD, 50, W - PAD * 2, STAGE_H, drumPattern || '2タム');
+  // ステージ画像描画
+  if (stageImg) {
+    ctx.drawImage(stageImg, PAD, 50, STAGE_W, STAGE_H);
+  }
 
   // Divider
   const tableY = 50 + STAGE_H + 16;
@@ -1528,7 +1459,7 @@ function drawSetlistDiagram(canvas, sl, liveName, liveDate, stageTime, drumPatte
   }
 }
 
-function updateSetlistCanvas(prefix, sl) {
+async function updateSetlistCanvas(prefix, sl) {
   const wrap = document.getElementById(`${prefix}-canvas-wrap`);
   const summary = document.getElementById(`${prefix}-setlist-summary`);
   if (!wrap) return;
@@ -1543,7 +1474,7 @@ function updateSetlistCanvas(prefix, sl) {
   const liveName = document.getElementById(`${prefix}-name`)?.value.trim() || '';
   const stageTime = document.getElementById(`${prefix}-stage-time`)?.value || '';
   const drumPattern = document.querySelector(`input[name="${prefix}-drum"]:checked`)?.value || '2タム';
-  drawSetlistDiagram(canvas, sl, liveName, liveDate, stageTime, drumPattern);
+  await drawSetlistDiagram(canvas, sl, liveName, liveDate, stageTime, drumPattern);
   if (summary) {
     const totalSec = sl.reduce((s, n) => s + (songsDetail[n] ? songsDetail[n].duration_seconds : 0), 0);
     const tm = Math.floor(totalSec / 60), ts = totalSec % 60;
@@ -1558,7 +1489,7 @@ async function uploadSetlistImage(prefix, liveId, liveDate, liveName, sl) {
     if (!canvas) return;
     const stageTime = document.getElementById(`${prefix}-stage-time`)?.value || '';
     const drumPattern = document.querySelector(`input[name="${prefix}-drum"]:checked`)?.value || '2タム';
-    drawSetlistDiagram(canvas, sl, liveName, liveDate, stageTime, drumPattern);
+    await drawSetlistDiagram(canvas, sl, liveName, liveDate, stageTime, drumPattern);
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     const formData = new FormData();
     formData.append('image', blob, 'setlist.png');
