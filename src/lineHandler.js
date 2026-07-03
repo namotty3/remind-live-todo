@@ -911,11 +911,20 @@ async function handleSendSetlistByDrum(liveId, drumPattern, userId, reply) {
     return reply({ type: 'text', text: `✅ ドラムパターンを「${drumPattern}」に設定しました。\n\nセット図はまだ作成されていません。\nWebポータルでセトリを設定して保存してください。` });
   }
 
+  const drumSuffix = { '2タム': '2tam', '1タム': '1tam', 'ドラム無し': 'nodrum' };
+  const suffix = drumSuffix[drumPattern] || '2tam';
+  // 保存済みURLのドラムサフィックス部分を選択パターンに置き換える
+  let imageUrl = live.setlist_image_url.replace(/-(2tam|1tam|nodrum)\.png$/, `-${suffix}.png`);
+  // 旧フォーマット（サフィックスなし）への対応
+  if (imageUrl === live.setlist_image_url && !imageUrl.includes(`-${suffix}.png`)) {
+    imageUrl = live.setlist_image_url.replace(/\.png$/, `-${suffix}.png`);
+  }
+
   const [y, m, d] = live.date.split('-');
   const dateStr = `${y}年${parseInt(m)}月${parseInt(d)}日`;
   return reply([
     { type: 'text', text: `🎴 セット図（${drumPattern}）\n${dateStr}　${live.name || live.type}` },
-    { type: 'image', originalContentUrl: live.setlist_image_url, previewImageUrl: live.setlist_image_url }
+    { type: 'image', originalContentUrl: imageUrl, previewImageUrl: imageUrl }
   ]);
 }
 

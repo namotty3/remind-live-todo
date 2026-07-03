@@ -38,9 +38,10 @@ router.get('/songs/detail', auth, async (_req, res) => {
 
 router.post('/lives/:id/setlist-image', auth, upload.single('image'), async (req, res) => {
   const { id } = req.params;
+  const drum = req.query.drum || '2tam';
   if (!req.file) return res.status(400).json({ error: 'No file' });
 
-  const filename = `setlist-${id}.png`;
+  const filename = `setlist-${id}-${drum}.png`;
   const { error: upErr } = await supabase.storage
     .from('flyers')
     .upload(filename, req.file.buffer, { contentType: 'image/png', upsert: true });
@@ -48,8 +49,8 @@ router.post('/lives/:id/setlist-image', auth, upload.single('image'), async (req
 
   const { data: { publicUrl } } = supabase.storage.from('flyers').getPublicUrl(filename);
 
-  const { data: live, error: liveErr } = await supabase
-    .from('lives').update({ setlist_image_url: publicUrl }).eq('id', id).select().single();
+  const { error: liveErr } = await supabase
+    .from('lives').update({ setlist_image_url: publicUrl }).eq('id', id);
   if (liveErr) return res.status(500).json({ error: liveErr.message });
 
   res.json({ ok: true, url: publicUrl });

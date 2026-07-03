@@ -1513,22 +1513,27 @@ async function uploadSetlistImage(prefix, liveId, liveDate, liveName, sl) {
   const canvas = document.getElementById(`${prefix}-setlist-canvas`);
   if (!canvas) { alert('セット図エラー: canvasが見つかりません'); return; }
   const stageTime = document.getElementById(`${prefix}-stage-time`)?.value || '';
-  const drumPattern = document.querySelector(`input[name="${prefix}-drum"]:checked`)?.value || '2タム';
   const equipment = document.getElementById(`${prefix}-equipment`)?.value || '';
-  await drawSetlistDiagram(canvas, sl, liveName, liveDate, stageTime, drumPattern, equipment);
-  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-  if (!blob) { alert('セット図エラー: 画像の生成に失敗しました'); return; }
-  const formData = new FormData();
-  formData.append('image', blob, 'setlist.png');
-  const res = await fetch(`/api/lives/${liveId}/setlist-image`, {
-    method: 'POST',
-    headers: { 'x-password': pw },
-    body: formData,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    alert('セット図アップロード失敗: ' + (err.error || res.status));
-    return;
+  const DRUMS = [
+    { label: '2タム',    suffix: '2tam' },
+    { label: '1タム',    suffix: '1tam' },
+    { label: 'ドラム無し', suffix: 'nodrum' },
+  ];
+  for (const { label, suffix } of DRUMS) {
+    await drawSetlistDiagram(canvas, sl, liveName, liveDate, stageTime, label, equipment);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) { alert(`セット図エラー: ${label}の画像生成に失敗`); continue; }
+    const formData = new FormData();
+    formData.append('image', blob, 'setlist.png');
+    const res = await fetch(`/api/lives/${liveId}/setlist-image?drum=${suffix}`, {
+      method: 'POST',
+      headers: { 'x-password': pw },
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(`セット図アップロード失敗(${label}): ` + (err.error || res.status));
+    }
   }
 }
 
