@@ -1522,7 +1522,7 @@ async function uploadSetlistImage(prefix, liveId, liveDate, liveName, sl) {
   formData.append('image', blob, 'setlist.png');
   const res = await fetch(`/api/lives/${liveId}/setlist-image`, {
     method: 'POST',
-    headers: { 'x-password': password },
+    headers: { 'x-password': pw },
     body: formData,
   });
   if (!res.ok) {
