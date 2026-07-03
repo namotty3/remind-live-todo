@@ -27,23 +27,20 @@ app.use('/logo', express.static(path.join(__dirname, 'logo')));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/calendar', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-app.post('/webhook', line.middleware(lineConfig), async (req, res) => {
-  const results = await Promise.allSettled(
-    req.body.events.map((event) => {
-      if (event.type === 'message') {
-        return handleMessage(event, client);
-      }
-      if (event.type === 'postback') {
-        return handlePostback(event, client);
-      }
-    })
-  );
-
-  results.forEach((r) => {
-    if (r.status === 'rejected') console.error('エラー:', r.reason);
-  });
-
+app.post('/webhook', line.middleware(lineConfig), (req, res) => {
+  // LINE の replyToken は30秒で失効するため、即座に200を返してから処理する
   res.json({ ok: true });
+
+  Promise.allSettled(
+    req.body.events.map((event) => {
+      if (event.type === 'message')  return handleMessage(event, client);
+      if (event.type === 'postback') return handlePostback(event, client);
+    })
+  ).then((results) => {
+    results.forEach((r) => {
+      if (r.status === 'rejected') console.error('イベント処理エラー:', r.reason);
+    });
+  });
 });
 
 app.use((err, _req, res, _next) => {
