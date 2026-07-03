@@ -1510,23 +1510,24 @@ async function updateSetlistCanvas(prefix, sl) {
 }
 
 async function uploadSetlistImage(prefix, liveId, liveDate, liveName, sl) {
-  try {
-    const canvas = document.getElementById(`${prefix}-setlist-canvas`);
-    if (!canvas) return;
-    const stageTime = document.getElementById(`${prefix}-stage-time`)?.value || '';
-    const drumPattern = document.querySelector(`input[name="${prefix}-drum"]:checked`)?.value || '2タム';
-    const equipment = document.getElementById(`${prefix}-equipment`)?.value || '';
-    await drawSetlistDiagram(canvas, sl, liveName, liveDate, stageTime, drumPattern, equipment);
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-    const formData = new FormData();
-    formData.append('image', blob, 'setlist.png');
-    await fetch(`/api/lives/${liveId}/setlist-image`, {
-      method: 'POST',
-      headers: { 'x-password': password },
-      body: formData,
-    });
-  } catch (e) {
-    console.error('セット図アップロード失敗:', e);
+  const canvas = document.getElementById(`${prefix}-setlist-canvas`);
+  if (!canvas) { alert('セット図エラー: canvasが見つかりません'); return; }
+  const stageTime = document.getElementById(`${prefix}-stage-time`)?.value || '';
+  const drumPattern = document.querySelector(`input[name="${prefix}-drum"]:checked`)?.value || '2タム';
+  const equipment = document.getElementById(`${prefix}-equipment`)?.value || '';
+  await drawSetlistDiagram(canvas, sl, liveName, liveDate, stageTime, drumPattern, equipment);
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) { alert('セット図エラー: 画像の生成に失敗しました'); return; }
+  const formData = new FormData();
+  formData.append('image', blob, 'setlist.png');
+  const res = await fetch(`/api/lives/${liveId}/setlist-image`, {
+    method: 'POST',
+    headers: { 'x-password': password },
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    alert('セット図アップロード失敗: ' + (err.error || res.status));
   }
 }
 
@@ -1600,10 +1601,10 @@ async function submitAddLive() {
   if (!date) { alert('日付を選んでください'); return; }
   try {
     const live = await api('POST', '/lives', { date, type: document.getElementById('al-type').value, name: document.getElementById('al-name').value.trim(), venue: document.getElementById('al-venue').value.trim(), description: document.getElementById('al-desc').value.trim(), flyer_url: document.getElementById('al-flyer-url').value, setlist: addSetlist.length ? addSetlist.join(',') : '', notes: document.getElementById('al-notes').value.trim(), stage_time: document.getElementById('al-stage-time').value.trim(), drum_pattern: document.querySelector('input[name="al-drum"]:checked')?.value || '2タム', equipment: document.getElementById('al-equipment').value.trim() });
-    close_('add-live-overlay');
     if (addSetlist.length > 0) {
       await uploadSetlistImage('al', live.id, live.date, live.name || live.type, addSetlist);
     }
+    close_('add-live-overlay');
     await refresh();
   } catch (e) { alert('登録に失敗しました: ' + e.message); }
 }
@@ -1710,10 +1711,10 @@ function openEditLive() {
 async function submitEditLive() {
   try {
     const live = await api('PUT', `/lives/${currentLiveId}`, { date: document.getElementById('el-date').value, type: document.getElementById('el-type').value, name: document.getElementById('el-name').value.trim(), venue: document.getElementById('el-venue').value.trim(), description: document.getElementById('el-desc').value.trim(), flyer_url: document.getElementById('el-flyer-url').value, setlist: editSetlist.length ? editSetlist.join(',') : '', notes: document.getElementById('el-notes').value.trim(), stage_time: document.getElementById('el-stage-time').value.trim(), drum_pattern: document.querySelector('input[name="el-drum"]:checked')?.value || '2タム', equipment: document.getElementById('el-equipment').value.trim() });
-    close_('edit-live-overlay');
     if (editSetlist.length > 0) {
       await uploadSetlistImage('el', currentLiveId, live.date, live.name || live.type, editSetlist);
     }
+    close_('edit-live-overlay');
     await refresh();
   } catch (e) { alert('更新に失敗しました: ' + e.message); }
 }
