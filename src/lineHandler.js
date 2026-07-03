@@ -324,6 +324,32 @@ async function handlePostback(event, client) {
     const liveId = parseInt(params.get('live_id'));
     return handleDeleteLive(liveId, userId, reply);
   }
+
+  if (action === 'setlist_drum_select') {
+    const liveId = params.get('live_id');
+    const drums = ['2タム', '1タム', 'ドラム無し'];
+    return reply({
+      type: 'text',
+      text: '🥁 ドラムパターンを選択してください',
+      quickReply: {
+        items: drums.map(drum => ({
+          type: 'action',
+          action: {
+            type: 'postback',
+            label: drum,
+            data: `action=send_setlist&live_id=${liveId}&drum=${encodeURIComponent(drum)}`,
+            displayText: drum
+          }
+        }))
+      }
+    });
+  }
+
+  if (action === 'send_setlist') {
+    const liveId = parseInt(params.get('live_id'));
+    const drum = decodeURIComponent(params.get('drum') || '2タム');
+    return handleSendSetlistByDrum(liveId, drum, userId, reply);
+  }
 }
 
 // ---- GUIメッセージビルダー ----
@@ -475,6 +501,7 @@ function buildTaskFlex(live, tasks) {
   if (live.flyer_url) {
     bodyContents.push({ type: 'button', action: { type: 'postback', label: '🖼️ フライヤーを見る', data: `action=show_flyer&live_id=${live.id}`, displayText: 'フライヤーを見る' }, style: 'secondary', margin: 'lg' });
   }
+  bodyContents.push({ type: 'button', action: { type: 'postback', label: '🎴 セット図作成', data: `action=setlist_drum_select&live_id=${live.id}`, displayText: 'セット図作成' }, style: 'secondary', margin: 'sm' });
 
   return {
     type: 'flex',
@@ -858,6 +885,29 @@ function helpText() {
 カードの「タスクを見る」→ 各タスクにDoneボタン
 
 ⚠️ 期限切れ未完了タスクは2日ごとに通知`;
+}
+
+async function handleSendSetlistByDrum(liveId, drumPattern, userId, reply) {
+  const { data: live, error } = await supabase
+    .from('lives')
+    .update({ drum_pattern: drumPattern })
+    .eq('id', liveId)
+    .eq('user_id', sharedId(userId))
+    .select('id, date, name, type, setlist_image_url')
+    .single();
+
+  if (error || !live) return reply({ type: 'text', text: '❌ ライブが見つかりません。' });
+
+  if (!live.setlist_image_url) {
+    return reply({ type: 'text', text: `✅ ドラムパターンを「${drumPattern}」に設定しました。\n\nセット図はまだ作成されていません。\nWebポータルでセトリを設定して保存してください。` });
+  }
+
+  const [y, m, d] = live.date.split('-');
+  const dateStr = `${y}年${parseInt(m)}月${parseInt(d)}日`;
+  return reply([
+    { type: 'text', text: `🎴 セット図（${drumPattern}）\n${dateStr}　${live.name || live.type}` },
+    { type: 'image', originalContentUrl: live.setlist_image_url, previewImageUrl: live.setlist_image_url }
+  ]);
 }
 
 async function handleSendSetlist(userId, reply) {
