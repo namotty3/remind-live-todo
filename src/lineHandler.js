@@ -890,13 +890,18 @@ function helpText() {
 async function handleSendSetlistByDrum(liveId, drumPattern, userId, reply) {
   const { data: live, error } = await supabase
     .from('lives')
-    .update({ drum_pattern: drumPattern })
-    .eq('id', liveId)
-    .eq('user_id', sharedId(userId))
     .select('id, date, name, type, setlist_image_url')
+    .eq('id', liveId)
     .single();
 
-  if (error || !live) return reply({ type: 'text', text: '❌ ライブが見つかりません。' });
+  if (error || !live) {
+    console.error('handleSendSetlistByDrum: live not found', { liveId, error: error?.message });
+    return reply({ type: 'text', text: '❌ ライブが見つかりません。' });
+  }
+
+  supabase.from('lives').update({ drum_pattern: drumPattern }).eq('id', liveId).then(({ error: ue }) => {
+    if (ue) console.error('drum_pattern update error:', ue.message);
+  });
 
   if (!live.setlist_image_url) {
     return reply({ type: 'text', text: `✅ ドラムパターンを「${drumPattern}」に設定しました。\n\nセット図はまだ作成されていません。\nWebポータルでセトリを設定して保存してください。` });
