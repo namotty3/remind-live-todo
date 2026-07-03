@@ -1298,6 +1298,25 @@ function setFlyerPreview(prefix, url) {
 const MOOD_COLOR = { H: '#FF6B35', M: '#4ECDC4', S: '#9B59B6' };
 const JF = '"Hiragino Sans","Yu Gothic","Meiryo",sans-serif';
 
+function drawMicStand(ctx, cx, topY) {
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1.2;
+  // Mic head (small oval)
+  ctx.beginPath();
+  ctx.ellipse(cx, topY + 7, 6, 8, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  // Stand
+  ctx.beginPath();
+  ctx.moveTo(cx, topY + 15);
+  ctx.lineTo(cx, topY + 30);
+  ctx.stroke();
+  // Base (angled feet)
+  ctx.beginPath();
+  ctx.moveTo(cx - 9, topY + 30);
+  ctx.lineTo(cx + 9, topY + 30);
+  ctx.stroke();
+}
+
 function drawStageDiagram(ctx, sx, sy, sw, sh, drumPattern) {
   ctx.save();
   ctx.strokeStyle = '#333';
@@ -1305,7 +1324,8 @@ function drawStageDiagram(ctx, sx, sy, sw, sh, drumPattern) {
   ctx.strokeRect(sx, sy, sw, sh);
 
   // PA equipment box (top-left)
-  const paX = sx + 18, paY = sy + 14, paW = 90, paH = 50;
+  const paX = sx + 18, paY = sy + 16, paW = 90, paH = 50;
+  ctx.strokeStyle = '#333';
   ctx.strokeRect(paX, paY, paW, paH);
   ctx.fillStyle = '#222';
   ctx.font = `9px ${JF}`;
@@ -1314,74 +1334,56 @@ function drawStageDiagram(ctx, sx, sy, sw, sh, drumPattern) {
   ctx.fillText('同期持込', paX + paW / 2, paY + 28);
   ctx.fillText('（モノラル）', paX + paW / 2, paY + 42);
 
-  // Drum oval (top center-right)
+  // Drum oval — placed immediately to the right of zoom R8 box
   if (drumPattern !== 'ドラム無し') {
-    const dCX = sx + sw * 0.62, dCY = sy + 40;
+    const rx1 = 50, ry1 = 24;
+    const dCX1 = paX + paW + 16 + rx1;   // ← zoom R8右端からすぐ横
+    const dCY1 = paY + paH / 2;
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.ellipse(dCX, dCY, 52, 26, 0, 0, Math.PI * 2);
+    ctx.ellipse(dCX1, dCY1, rx1, ry1, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.fillStyle = '#222';
     ctx.font = `bold 13px ${JF}`;
     ctx.textAlign = 'center';
-    ctx.fillText(drumPattern, dCX, dCY + 5);
-    // Second smaller oval for hi-hat or additional cymbal
+    ctx.fillText(drumPattern, dCX1, dCY1 + 5);
+
     if (drumPattern === '2タム') {
+      // 2つ目のオーバルを右に隣接
+      const rx2 = 28, ry2 = 18;
+      const dCX2 = dCX1 + rx1 + 8 + rx2;
+      const dCY2 = dCY1;
       ctx.beginPath();
-      ctx.ellipse(dCX + 72, dCY - 4, 28, 18, 0, 0, Math.PI * 2);
+      ctx.ellipse(dCX2, dCY2, rx2, ry2, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
   } else {
     ctx.fillStyle = '#999';
     ctx.font = `13px ${JF}`;
-    ctx.textAlign = 'center';
-    ctx.fillText('Dr なし', sx + sw * 0.62, sy + 44);
+    ctx.textAlign = 'left';
+    ctx.fillText('Dr なし', paX + paW + 20, paY + paH / 2 + 5);
   }
 
-  // Middle row — instrument rectangles
-  const ry = sy + sh * 0.52, rh = 42;
+  // Middle row — instrument rectangles (矢印なし)
+  const ry = sy + sh * 0.50, rh = 42;
   const positions = [
-    { label: 'Ba', x: sx + sw * 0.11, w: 76 },
-    { label: 'Vo,Gt', x: sx + sw * 0.35, w: 84 },
-    { label: '上手Gt', x: sx + sw * 0.62, w: 76 },
+    { label: 'Ba',    x: sx + sw * 0.10, w: 76 },
+    { label: 'Vo,Gt', x: sx + sw * 0.38, w: 84 },
+    { label: '上手Gt', x: sx + sw * 0.65, w: 76 },
   ];
   positions.forEach(p => {
     ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1.5;
     ctx.strokeRect(p.x, ry, p.w, rh);
     ctx.fillStyle = '#222';
     ctx.font = `13px ${JF}`;
     ctx.textAlign = 'center';
     ctx.fillText(p.label, p.x + p.w / 2, ry + rh / 2 + 5);
-    // Arrow above
-    const ax = p.x + p.w / 2;
-    ctx.beginPath();
-    ctx.moveTo(ax, ry - 6);
-    ctx.lineTo(ax, ry - 20);
-    ctx.strokeStyle = '#444';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(ax, ry - 20);
-    ctx.lineTo(ax - 5, ry - 12);
-    ctx.lineTo(ax + 5, ry - 12);
-    ctx.closePath();
-    ctx.fillStyle = '#444';
-    ctx.fill();
-  });
 
-  // Vo circle (front center)
-  const vCX = sx + sw / 2, vCY = sy + sh - 26;
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.arc(vCX, vCY, 22, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.fillStyle = '#222';
-  ctx.font = `13px ${JF}`;
-  ctx.textAlign = 'center';
-  ctx.fillText('Vo', vCX, vCY + 5);
-  // Arrow above Vo
-  ctx.beginPath(); ctx.moveTo(vCX, vCY - 24); ctx.lineTo(vCX, vCY - 38); ctx.strokeStyle = '#444'; ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(vCX, vCY - 38); ctx.lineTo(vCX - 5, vCY - 30); ctx.lineTo(vCX + 5, vCY - 30); ctx.closePath(); ctx.fillStyle = '#444'; ctx.fill();
+    // マイクスタンド（矩形の下）
+    drawMicStand(ctx, p.x + p.w / 2, ry + rh + 6);
+  });
 
   ctx.restore();
 }
