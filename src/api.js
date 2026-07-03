@@ -30,6 +30,45 @@ router.get('/songs', auth, (_req, res) => {
   }
 });
 
+router.get('/songs/detail', auth, async (_req, res) => {
+  const { data, error } = await supabase.from('songs').select('*').order('id');
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+router.post('/lives/:id/setlist-image', auth, upload.single('image'), async (req, res) => {
+  const { id } = req.params;
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+
+  const filename = `setlist-${id}.png`;
+  const { error: upErr } = await supabase.storage
+    .from('flyers')
+    .upload(filename, req.file.buffer, { contentType: 'image/png', upsert: true });
+  if (upErr) return res.status(500).json({ error: upErr.message });
+
+  const { data: { publicUrl } } = supabase.storage.from('flyers').getPublicUrl(filename);
+
+  const { data: live, error: liveErr } = await supabase
+    .from('lives').update({ setlist_image_url: publicUrl }).eq('id', id).select().single();
+  if (liveErr) return res.status(500).json({ error: liveErr.message });
+
+  try {
+    const to = process.env.CALENDAR_CHAT_ID;
+    if (to) {
+      const [y, m, d] = live.date.split('-');
+      const dateStr = `${y}年${parseInt(m)}月${parseInt(d)}日`;
+      await lineClient.pushMessage({ to, messages: [
+        { type: 'text', text: `🎵 セット図\n${dateStr}　${live.name || live.type}` },
+        { type: 'image', originalContentUrl: publicUrl, previewImageUrl: publicUrl },
+      ] });
+    }
+  } catch (e) {
+    console.error('セット図LINE送信失敗:', e.message);
+  }
+
+  res.json({ ok: true, url: publicUrl });
+});
+
 function auth(req, res, next) {
   const pw = req.headers['x-password'];
   if (!process.env.CALENDAR_PASSWORD || pw !== process.env.CALENDAR_PASSWORD) {

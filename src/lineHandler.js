@@ -98,6 +98,7 @@ async function handleMessage(event, client) {
   if (/^チェック \d+$/.test(text))                       return handleCheck(parseInt(text.split(' ')[1]), userId, reply);
   if (text === 'ヘルプ' || text === 'help')              return reply({ type: 'text', text: helpText() });
   if (text === 'ID確認')                                 return reply({ type: 'text', text: `このチャットのID:\n${userId}` });
+  if (text === 'セトリ送って' || text === 'セトリ')      return handleSendSetlist(userId, reply);
   if (text.startsWith('ライブ追加 '))                    return handleAddLiveText(text, userId, reply);
 }
 
@@ -857,6 +858,30 @@ function helpText() {
 カードの「タスクを見る」→ 各タスクにDoneボタン
 
 ⚠️ 期限切れ未完了タスクは2日ごとに通知`;
+}
+
+async function handleSendSetlist(userId, reply) {
+  const today = todayJST();
+  const { data: lives, error } = await supabase
+    .from('lives')
+    .select('id, date, name, type, setlist_image_url')
+    .eq('user_id', sharedId(userId))
+    .gte('date', today)
+    .not('setlist_image_url', 'is', null)
+    .order('date')
+    .limit(1);
+
+  if (error || !lives || lives.length === 0) {
+    return reply({ type: 'text', text: 'セット図が登録されているライブがありません。\nWebポータルでセトリを保存してください。' });
+  }
+
+  const live = lives[0];
+  const [y, m, d] = live.date.split('-');
+  const dateStr = `${y}年${parseInt(m)}月${parseInt(d)}日`;
+  return reply([
+    { type: 'text', text: `🎵 セット図\n${dateStr}　${live.name || live.type}` },
+    { type: 'image', originalContentUrl: live.setlist_image_url, previewImageUrl: live.setlist_image_url },
+  ]);
 }
 
 module.exports = { handleMessage, handlePostback };
