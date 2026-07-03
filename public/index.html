@@ -77,11 +77,13 @@
     .modal-body { padding: 18px 20px; }
     .field-label { font-size: 13px; color: #666; margin: 14px 0 4px; display: block; }
     .field-label:first-child { margin-top: 0; }
-    .modal-body input, .modal-body select {
+    .modal-body input, .modal-body select, .modal-body textarea {
       width: 100%; padding: 10px 12px; border: 2px solid #ddd;
       border-radius: 8px; font-size: 15px; outline: none;
+      font-family: inherit; box-sizing: border-box;
     }
-    .modal-body input:focus, .modal-body select:focus { border-color: #00B900; }
+    .modal-body input:focus, .modal-body select:focus, .modal-body textarea:focus { border-color: #00B900; }
+    .modal-body textarea { resize: vertical; }
     .modal-foot { padding: 14px 20px; display: flex; gap: 8px; border-top: 1px solid #eee; }
     .btn { padding: 12px; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; flex: 1; font-weight: 500; }
     .btn-green  { background: #00B900; color: #fff; }
@@ -519,7 +521,7 @@
       </div>
       <div class="setlist-summary" id="al-setlist-summary"></div>
       <span class="field-label">持ち込み機材（任意）</span>
-      <textarea id="al-equipment" placeholder="例：JCM800&#10;ボスのコーラス" rows="3" style="resize:vertical;" oninput="updateSetlistCanvas('al',addSetlist)"></textarea>
+      <textarea id="al-equipment" placeholder="例：JCM800&#10;ボスのコーラス" rows="3" oninput="updateSetlistCanvas('al',addSetlist)"></textarea>
       <span class="field-label">その他（任意）</span>
       <input type="text" id="al-notes" placeholder="物販準備、集合時間など">
     </div>
@@ -624,7 +626,7 @@
       </div>
       <div class="setlist-summary" id="el-setlist-summary"></div>
       <span class="field-label">持ち込み機材（任意）</span>
-      <textarea id="el-equipment" placeholder="例：JCM800&#10;ボスのコーラス" rows="3" style="resize:vertical;" oninput="updateSetlistCanvas('el',editSetlist)"></textarea>
+      <textarea id="el-equipment" placeholder="例：JCM800&#10;ボスのコーラス" rows="3" oninput="updateSetlistCanvas('el',editSetlist)"></textarea>
       <span class="field-label">その他（任意）</span>
       <input type="text" id="el-notes">
     </div>
