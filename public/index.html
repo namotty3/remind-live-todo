@@ -1530,9 +1530,8 @@ async function uploadSetlistImage(prefix, liveId, liveDate, liveName, sl) {
     alert('セット図アップロード失敗: ' + (err.error || res.status));
     return;
   }
-  const data = await res.json().catch(() => ({}));
-  alert('✅ セット図保存完了\nURL: ' + (data.url || '取得できず'));
 }
+
 
 // ---- Setlist Picker ----
 function renderSetlist(prefix, sl) {

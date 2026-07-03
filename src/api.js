@@ -52,20 +52,6 @@ router.post('/lives/:id/setlist-image', auth, upload.single('image'), async (req
     .from('lives').update({ setlist_image_url: publicUrl }).eq('id', id).select().single();
   if (liveErr) return res.status(500).json({ error: liveErr.message });
 
-  try {
-    const to = process.env.CALENDAR_CHAT_ID;
-    if (to) {
-      const [y, m, d] = live.date.split('-');
-      const dateStr = `${y}年${parseInt(m)}月${parseInt(d)}日`;
-      await lineClient.pushMessage({ to, messages: [
-        { type: 'text', text: `🎵 セット図\n${dateStr}　${live.name || live.type}` },
-        { type: 'image', originalContentUrl: publicUrl, previewImageUrl: publicUrl },
-      ] });
-    }
-  } catch (e) {
-    console.error('セット図LINE送信失敗:', e.message);
-  }
-
   res.json({ ok: true, url: publicUrl });
 });
 
