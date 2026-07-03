@@ -346,8 +346,12 @@ async function handlePostback(event, client) {
   }
 
   if (action === 'send_setlist') {
-    const liveId = parseInt(params.get('live_id'));
+    const rawId = params.get('live_id');
+    const liveId = parseInt(rawId);
     const drum = decodeURIComponent(params.get('drum') || '2タム');
+    if (isNaN(liveId)) {
+      return reply({ type: 'text', text: `❌ IDエラー (raw="${rawId}", drum="${drum}")` });
+    }
     return handleSendSetlistByDrum(liveId, drum, userId, reply);
   }
 }
@@ -892,11 +896,11 @@ async function handleSendSetlistByDrum(liveId, drumPattern, userId, reply) {
     .from('lives')
     .select('id, date, name, type, setlist_image_url')
     .eq('id', liveId)
-    .single();
+    .maybeSingle();
 
   if (error || !live) {
     console.error('handleSendSetlistByDrum: live not found', { liveId, error: error?.message });
-    return reply({ type: 'text', text: '❌ ライブが見つかりません。' });
+    return reply({ type: 'text', text: `❌ ライブが見つかりません。(ID:${liveId} err:${error?.message || 'なし'})` });
   }
 
   supabase.from('lives').update({ drum_pattern: drumPattern }).eq('id', liveId).then(({ error: ue }) => {
