@@ -84,7 +84,16 @@ async function handleMessage(event, client) {
   const text = event.message.text.trim();
 
   // セッション中の入力を最優先で処理
-  const session = await getSession(userId);
+  console.log('[before getSession]', userId);
+  let session = null;
+  try {
+    const t = new Promise((_, rej) => setTimeout(() => rej(new Error('SESSION_TIMEOUT')), 5000));
+    session = await Promise.race([getSession(userId), t]);
+  } catch (e) {
+    console.error('[getSession FAILED]', e.message);
+    session = null;
+  }
+  console.log('[after getSession]', session ? 'has session' : 'no session');
   if (session) {
     if (text === 'キャンセル') {
       await clearSession(userId);
