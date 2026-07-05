@@ -7,10 +7,6 @@ function todayJST() {
   return jst.toISOString().split('T')[0];
 }
 
-function tomorrowJST() {
-  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000);
-  return jst.toISOString().split('T')[0];
-}
 
 function nowJSTString() {
   const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
@@ -30,7 +26,7 @@ function initScheduler() {
 async function checkAndNotify() {
   console.log(`[${new Date().toISOString()}] checkAndNotify 開始`);
   await notifyOverdueTasks();
-  await notifyTomorrowEvents();
+  await notifyUpcomingEvents();
   await notifyUpcomingLives();
   console.log(`[${new Date().toISOString()}] checkAndNotify 完了`);
 }
@@ -147,13 +143,15 @@ async function notifyOverdueTasks() {
   }
 }
 
-async function notifyTomorrowEvents() {
-  const tomorrow = tomorrowJST();
+async function notifyUpcomingEvents() {
+  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  jst.setDate(jst.getDate() + 2);
+  const twoDaysLater = jst.toISOString().split('T')[0];
 
   const { data: events, error } = await supabase
     .from('events')
     .select('*')
-    .eq('date', tomorrow);
+    .eq('date', twoDaysLater);
 
   if (error || !events || events.length === 0) return;
 
@@ -164,9 +162,10 @@ async function notifyTomorrowEvents() {
   }
 
   for (const [userId, evs] of Object.entries(byUser)) {
-    let msg = '📅 明日の予定\n\n';
+    let msg = '📅 2日後の予定\n\n';
     for (const ev of evs) {
       msg += `・${ev.title}`;
+      if (ev.time_range) msg += `\n  🕐 ${ev.time_range}`;
       if (ev.location) msg += `\n  📍 ${ev.location}`;
       msg += '\n';
     }
