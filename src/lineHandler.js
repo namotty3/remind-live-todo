@@ -152,7 +152,29 @@ async function handleSessionInput(session, text, chatId, reply) {
 
   if (session.step === 'awaiting_description') {
     const description = isSkip ? null : text;
+    if (session.data.type === '主催') {
+      await setSession(chatId, 'awaiting_taiban', { ...session.data, description });
+      return reply({
+        type: 'text',
+        text: '🎸 対バンバンド名を入力してください（任意）\n例：バンドA / バンドB / バンドC',
+        quickReply: {
+          items: [{ type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } }]
+        }
+      });
+    }
     await setSession(chatId, 'awaiting_flyer', { ...session.data, description });
+    return reply({
+      type: 'text',
+      text: '🖼️ フライヤー画像URLを入力してください（任意）',
+      quickReply: {
+        items: [{ type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } }]
+      }
+    });
+  }
+
+  if (session.step === 'awaiting_taiban') {
+    const taiban = isSkip ? null : text;
+    await setSession(chatId, 'awaiting_flyer', { ...session.data, taiban });
     return reply({
       type: 'text',
       text: '🖼️ フライヤー画像URLを入力してください（任意）',
@@ -176,9 +198,9 @@ async function handleSessionInput(session, text, chatId, reply) {
 
   if (session.step === 'awaiting_notes') {
     const notes = isSkip ? null : text;
-    const { date, type, name, venue, description, flyer_url } = session.data;
+    const { date, type, name, venue, description, flyer_url, taiban } = session.data;
     await clearSession(chatId);
-    return handleAddLive(date, type, name, venue, description, flyer_url, notes, null, chatId, reply);
+    return handleAddLive(date, type, name, venue, description, flyer_url, notes, null, chatId, reply, taiban);
   }
 
   if (session.step === 'event_title') {
@@ -188,9 +210,24 @@ async function handleSessionInput(session, text, chatId, reply) {
 
   if (session.step === 'event_location') {
     const location = isSkip ? null : text;
-    const { title, date } = session.data;
+    await setSession(chatId, 'awaiting_event_time', { ...session.data, location });
+    return reply({
+      type: 'text',
+      text: '🕐 時間帯を入力してください（任意）\n例：19:00〜20:00',
+      quickReply: {
+        items: [
+          { type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } },
+          { type: 'action', action: { type: 'message', label: 'キャンセル', text: 'キャンセル' } }
+        ]
+      }
+    });
+  }
+
+  if (session.step === 'awaiting_event_time') {
+    const timeRange = isSkip ? null : text;
+    const { title, date, location } = session.data;
     await clearSession(chatId);
-    return handleAddEvent(title, date, location, chatId, reply);
+    return handleAddEvent(title, date, location, timeRange, chatId, reply);
   }
 
   if (session.step === 'editing_name') {
@@ -511,6 +548,9 @@ function buildTaskFlex(live, tasks) {
   });
 
   const bodyContents = [];
+  if (live.taiban) {
+    bodyContents.push({ type: 'box', layout: 'vertical', backgroundColor: '#fff3e0', cornerRadius: 'sm', paddingAll: 'sm', margin: 'md', contents: [{ type: 'text', text: '🎸 対バン', size: 'xs', color: '#E65100', weight: 'bold' }, { type: 'text', text: live.taiban, size: 'sm', color: '#333333', wrap: true, margin: 'sm' }] });
+  }
   if (live.description) {
     bodyContents.push({ type: 'box', layout: 'vertical', backgroundColor: '#f5f5f5', cornerRadius: 'sm', paddingAll: 'sm', margin: 'md', contents: [{ type: 'text', text: `📝 ${live.description}`, size: 'sm', color: '#666666', wrap: true }] });
   }
@@ -652,10 +692,10 @@ function buildEditMenu(live) {
 
 // ---- コアハンドラー ----
 
-async function handleAddLive(dateStr, liveType, liveName, liveVenue, description, flyerUrl, notes, setlist, userId, reply) {
+async function handleAddLive(dateStr, liveType, liveName, liveVenue, description, flyerUrl, notes, setlist, userId, reply, taiban = null) {
   const { data: live, error } = await supabase
     .from('lives')
-    .insert({ date: dateStr, type: liveType, name: liveName || null, venue: liveVenue || null, description: description || null, flyer_url: flyerUrl || null, notes: notes || null, setlist: setlist || null, user_id: sharedId(userId) })
+    .insert({ date: dateStr, type: liveType, name: liveName || null, venue: liveVenue || null, description: description || null, flyer_url: flyerUrl || null, notes: notes || null, setlist: setlist || null, taiban: taiban || null, user_id: sharedId(userId) })
     .select()
     .single();
 
@@ -787,14 +827,15 @@ async function handleStartAddEvent(userId, reply) {
   return reply({ type: 'text', text: '📝 予定のタイトルを入力してください' });
 }
 
-async function handleAddEvent(title, dateStr, location, userId, reply) {
+async function handleAddEvent(title, dateStr, location, timeRange, userId, reply) {
   const { error } = await supabase
     .from('events')
-    .insert({ title, date: dateStr, location: location || null, user_id: sharedId(userId) });
+    .insert({ title, date: dateStr, location: location || null, time_range: timeRange || null, user_id: sharedId(userId) });
 
   if (error) return reply({ type: 'text', text: '❌ 登録に失敗しました。' });
 
   let text = `✅ 予定を登録しました！\n\n📅 ${formatDate(dateStr)}\n🗓️ ${title}`;
+  if (timeRange) text += `\n🕐 ${timeRange}`;
   if (location) text += `\n📍 ${location}`;
   return reply({ type: 'text', text });
 }
@@ -816,6 +857,7 @@ async function handleListEvents(userId, reply) {
   let text = `📅 今後の予定（${events.length}件）\n\n`;
   for (const ev of events) {
     text += `${formatDate(ev.date)}　${ev.title}`;
+    if (ev.time_range) text += `\n　🕐 ${ev.time_range}`;
     if (ev.location) text += `\n　📍 ${ev.location}`;
     text += '\n\n';
   }

@@ -85,12 +85,12 @@ router.get('/lives', auth, async (req, res) => {
 });
 
 router.post('/lives', auth, async (req, res) => {
-  const { date, type, name, venue, description, flyer_url, setlist, notes, stage_time, drum_pattern, equipment } = req.body;
+  const { date, type, name, venue, description, flyer_url, setlist, notes, stage_time, drum_pattern, equipment, taiban } = req.body;
   const userId = process.env.CALENDAR_CHAT_ID || 'web';
 
   const { data: live, error } = await supabase
     .from('lives')
-    .insert({ date, type, name: name || null, venue: venue || null, description: description || null, flyer_url: flyer_url || null, setlist: setlist || null, notes: notes || null, stage_time: stage_time || null, drum_pattern: drum_pattern || '2タム', equipment: equipment || null, user_id: userId })
+    .insert({ date, type, name: name || null, venue: venue || null, description: description || null, flyer_url: flyer_url || null, setlist: setlist || null, notes: notes || null, stage_time: stage_time || null, drum_pattern: drum_pattern || '2タム', equipment: equipment || null, taiban: taiban || null, user_id: userId })
     .select()
     .single();
 
@@ -104,7 +104,7 @@ router.post('/lives', auth, async (req, res) => {
 });
 
 router.put('/lives/:id', auth, async (req, res) => {
-  const { date, type, name, venue, description, flyer_url, setlist, notes, stage_time, drum_pattern, equipment } = req.body;
+  const { date, type, name, venue, description, flyer_url, setlist, notes, stage_time, drum_pattern, equipment, taiban } = req.body;
   const fields = {};
   if (date !== undefined) fields.date = date;
   if (type !== undefined) fields.type = type;
@@ -117,6 +117,7 @@ router.put('/lives/:id', auth, async (req, res) => {
   if (stage_time !== undefined) fields.stage_time = stage_time || null;
   if (drum_pattern !== undefined) fields.drum_pattern = drum_pattern || '2タム';
   if (equipment !== undefined) fields.equipment = equipment || null;
+  if (taiban !== undefined) fields.taiban = taiban || null;
 
   const { data: live, error } = await supabase.from('lives').update(fields).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
@@ -144,11 +145,11 @@ router.get('/events', auth, async (req, res) => {
 });
 
 router.post('/events', auth, async (req, res) => {
-  const { title, date, location } = req.body;
+  const { title, date, location, time_range } = req.body;
   const userId = process.env.CALENDAR_CHAT_ID || 'web';
   const { data, error } = await supabase
     .from('events')
-    .insert({ title, date, location: location || null, user_id: userId })
+    .insert({ title, date, location: location || null, time_range: time_range || null, user_id: userId })
     .select()
     .single();
   if (error) return res.status(500).json({ error: error.message });
@@ -156,11 +157,12 @@ router.post('/events', auth, async (req, res) => {
 });
 
 router.put('/events/:id', auth, async (req, res) => {
-  const { title, date, location } = req.body;
+  const { title, date, location, time_range } = req.body;
   const fields = {};
   if (title !== undefined) fields.title = title;
   if (date !== undefined) fields.date = date;
   if (location !== undefined) fields.location = location || null;
+  if (time_range !== undefined) fields.time_range = time_range || null;
   const { data, error } = await supabase.from('events').update(fields).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);

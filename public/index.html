@@ -479,10 +479,14 @@
       <span class="field-label">日付</span>
       <input type="date" id="al-date">
       <span class="field-label">種別</span>
-      <select id="al-type">
+      <select id="al-type" onchange="toggleTaibanField('al')">
         <option value="主催">主催</option>
         <option value="主催以外">主催以外</option>
       </select>
+      <div id="al-taiban-wrap">
+        <span class="field-label">対バン（任意）</span>
+        <textarea id="al-taiban" placeholder="例：バンドA / バンドB / バンドC" rows="2"></textarea>
+      </div>
       <span class="field-label">ライブ名（任意）</span>
       <input type="text" id="al-name" placeholder="例：○○主催ライブ">
       <span class="field-label">場所（任意）</span>
@@ -544,6 +548,8 @@
       <input type="date" id="ae-date">
       <span class="field-label">タイトル</span>
       <input type="text" id="ae-title" placeholder="例：レコーディング">
+      <span class="field-label">時間帯（任意）</span>
+      <input type="text" id="ae-time" placeholder="例：19:00〜20:00">
       <span class="field-label">場所（任意）</span>
       <input type="text" id="ae-location" placeholder="例：スタジオA">
     </div>
@@ -584,10 +590,14 @@
       <span class="field-label">日付</span>
       <input type="date" id="el-date">
       <span class="field-label">種別</span>
-      <select id="el-type">
+      <select id="el-type" onchange="toggleTaibanField('el')">
         <option value="主催">主催</option>
         <option value="主催以外">主催以外</option>
       </select>
+      <div id="el-taiban-wrap">
+        <span class="field-label">対バン（任意）</span>
+        <textarea id="el-taiban" placeholder="例：バンドA / バンドB / バンドC" rows="2"></textarea>
+      </div>
       <span class="field-label">ライブ名（任意）</span>
       <input type="text" id="el-name">
       <span class="field-label">場所（任意）</span>
@@ -666,6 +676,8 @@
       <input type="date" id="ee-date">
       <span class="field-label">タイトル</span>
       <input type="text" id="ee-title">
+      <span class="field-label">時間帯（任意）</span>
+      <input type="text" id="ee-time" placeholder="例：19:00〜20:00">
       <span class="field-label">場所（任意）</span>
       <input type="text" id="ee-location">
     </div>
@@ -1589,6 +1601,11 @@ function slRemove(prefix, i) {
 }
 
 // ---- Add Live ----
+function toggleTaibanField(prefix) {
+  const type = document.getElementById(`${prefix}-type`).value;
+  document.getElementById(`${prefix}-taiban-wrap`).style.display = type === '主催' ? '' : 'none';
+}
+
 function openAddLive() {
   close_('choice-modal');
   document.getElementById('al-date').value = pendingDate;
@@ -1596,7 +1613,9 @@ function openAddLive() {
   document.getElementById('al-name').value = '';
   document.getElementById('al-venue').value = '';
   document.getElementById('al-desc').value = '';
+  document.getElementById('al-taiban').value = '';
   document.getElementById('al-notes').value = '';
+  toggleTaibanField('al');
   clearFlyer('al');
   addSetlist = [];
   renderSetlist('al', addSetlist);
@@ -1607,7 +1626,8 @@ async function submitAddLive() {
   const date = document.getElementById('al-date').value;
   if (!date) { alert('日付を選んでください'); return; }
   try {
-    const live = await api('POST', '/lives', { date, type: document.getElementById('al-type').value, name: document.getElementById('al-name').value.trim(), venue: document.getElementById('al-venue').value.trim(), description: document.getElementById('al-desc').value.trim(), flyer_url: document.getElementById('al-flyer-url').value, setlist: addSetlist.length ? addSetlist.join(',') : '', notes: document.getElementById('al-notes').value.trim(), stage_time: document.getElementById('al-stage-time').value.trim(), drum_pattern: document.querySelector('input[name="al-drum"]:checked')?.value || '2タム', equipment: document.getElementById('al-equipment').value.trim() });
+    const alType = document.getElementById('al-type').value;
+    const live = await api('POST', '/lives', { date, type: alType, name: document.getElementById('al-name').value.trim(), venue: document.getElementById('al-venue').value.trim(), description: document.getElementById('al-desc').value.trim(), flyer_url: document.getElementById('al-flyer-url').value, setlist: addSetlist.length ? addSetlist.join(',') : '', notes: document.getElementById('al-notes').value.trim(), stage_time: document.getElementById('al-stage-time').value.trim(), drum_pattern: document.querySelector('input[name="al-drum"]:checked')?.value || '2タム', equipment: document.getElementById('al-equipment').value.trim(), taiban: alType === '主催' ? document.getElementById('al-taiban').value.trim() : '' });
     if (addSetlist.length > 0) {
       await uploadSetlistImage('al', live.id, live.date, live.name || live.type, addSetlist);
     }
@@ -1621,6 +1641,7 @@ function openAddEvent() {
   close_('choice-modal');
   document.getElementById('ae-date').value = pendingDate;
   document.getElementById('ae-title').value = '';
+  document.getElementById('ae-time').value = '';
   document.getElementById('ae-location').value = '';
   open_('add-event-overlay');
 }
@@ -1631,7 +1652,7 @@ async function submitAddEvent() {
   if (!date) { alert('日付を選んでください'); return; }
   if (!title) { alert('タイトルを入力してください'); return; }
   try {
-    await api('POST', '/events', { date, title, location: document.getElementById('ae-location').value.trim() });
+    await api('POST', '/events', { date, title, time_range: document.getElementById('ae-time').value.trim(), location: document.getElementById('ae-location').value.trim() });
     close_('add-event-overlay');
     await refresh();
   } catch (e) { alert('登録に失敗しました: ' + e.message); }
@@ -1707,6 +1728,8 @@ function openEditLive() {
   document.getElementById('el-notes').value = live.notes || '';
   document.getElementById('el-stage-time').value = live.stage_time || '';
   document.getElementById('el-equipment').value = live.equipment || '';
+  document.getElementById('el-taiban').value = live.taiban || '';
+  toggleTaibanField('el');
   const dp = live.drum_pattern || '2タム';
   document.querySelectorAll('input[name="el-drum"]').forEach(r => { r.checked = r.value === dp; });
   setFlyerPreview('el', live.flyer_url || '');
@@ -1717,7 +1740,8 @@ function openEditLive() {
 
 async function submitEditLive() {
   try {
-    const live = await api('PUT', `/lives/${currentLiveId}`, { date: document.getElementById('el-date').value, type: document.getElementById('el-type').value, name: document.getElementById('el-name').value.trim(), venue: document.getElementById('el-venue').value.trim(), description: document.getElementById('el-desc').value.trim(), flyer_url: document.getElementById('el-flyer-url').value, setlist: editSetlist.length ? editSetlist.join(',') : '', notes: document.getElementById('el-notes').value.trim(), stage_time: document.getElementById('el-stage-time').value.trim(), drum_pattern: document.querySelector('input[name="el-drum"]:checked')?.value || '2タム', equipment: document.getElementById('el-equipment').value.trim() });
+    const elType = document.getElementById('el-type').value;
+    const live = await api('PUT', `/lives/${currentLiveId}`, { date: document.getElementById('el-date').value, type: elType, name: document.getElementById('el-name').value.trim(), venue: document.getElementById('el-venue').value.trim(), description: document.getElementById('el-desc').value.trim(), flyer_url: document.getElementById('el-flyer-url').value, setlist: editSetlist.length ? editSetlist.join(',') : '', notes: document.getElementById('el-notes').value.trim(), stage_time: document.getElementById('el-stage-time').value.trim(), drum_pattern: document.querySelector('input[name="el-drum"]:checked')?.value || '2タム', equipment: document.getElementById('el-equipment').value.trim(), taiban: elType === '主催' ? document.getElementById('el-taiban').value.trim() : '' });
     if (editSetlist.length > 0) {
       await uploadSetlistImage('el', currentLiveId, live.date, live.name || live.type, editSetlist);
     }
@@ -1731,6 +1755,7 @@ function openEventDetail(event) {
   currentEventId = event.id;
   document.getElementById('ev-detail-title').textContent = event.title;
   let meta = `<p>📅 <strong>${fmtDate(event.date)}</strong></p>`;
+  if (event.time_range) meta += `<p>🕐 ${event.time_range}</p>`;
   if (event.location) meta += `<p>📍 ${event.location}</p>`;
   meta += `<p style="color:#4A90D9;font-size:13px;margin-top:8px">前日9時にLINE通知が届きます</p>`;
   document.getElementById('ev-detail-meta').innerHTML = meta;
@@ -1752,6 +1777,7 @@ function openEditEvent() {
   close_('event-detail-overlay');
   document.getElementById('ee-date').value = ev.date;
   document.getElementById('ee-title').value = ev.title;
+  document.getElementById('ee-time').value = ev.time_range || '';
   document.getElementById('ee-location').value = ev.location || '';
   open_('edit-event-overlay');
 }
@@ -1760,7 +1786,7 @@ async function submitEditEvent() {
   const title = document.getElementById('ee-title').value.trim();
   if (!title) { alert('タイトルを入力してください'); return; }
   try {
-    await api('PUT', `/events/${currentEventId}`, { date: document.getElementById('ee-date').value, title, location: document.getElementById('ee-location').value.trim() });
+    await api('PUT', `/events/${currentEventId}`, { date: document.getElementById('ee-date').value, title, time_range: document.getElementById('ee-time').value.trim(), location: document.getElementById('ee-location').value.trim() });
     close_('edit-event-overlay');
     await refresh();
   } catch (e) { alert('更新に失敗しました: ' + e.message); }
