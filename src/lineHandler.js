@@ -84,7 +84,6 @@ async function handleMessage(event, client) {
   const text = event.message.text.trim();
 
   // セッション中の入力を最優先で処理
-  console.log('[before getSession]', userId);
   let session = null;
   try {
     const t = new Promise((_, rej) => setTimeout(() => rej(new Error('SESSION_TIMEOUT')), 5000));
@@ -93,13 +92,18 @@ async function handleMessage(event, client) {
     console.error('[getSession FAILED]', e.message);
     session = null;
   }
-  console.log('[after getSession]', session ? 'has session' : 'no session');
+
+  const isMainCommand = ['メニュー', 'menu', 'ライブ追加', '追加', 'ライブ一覧', '一覧',
+    'ライブ削除', '削除', '予定追加', '予定一覧', 'ヘルプ', 'help', 'ID確認', 'セトリ送って', 'セトリ'].includes(text);
+
   if (session) {
-    if (text === 'キャンセル') {
+    if (text === 'キャンセル' || isMainCommand) {
       await clearSession(userId);
-      return reply({ type: 'text', text: 'キャンセルしました。' });
+      if (text === 'キャンセル') return reply({ type: 'text', text: 'キャンセルしました。' });
+      // メインコマンドはそのまま下の処理へ
+    } else {
+      return handleSessionInput(session, text, userId, reply);
     }
-    return handleSessionInput(session, text, userId, reply);
   }
 
   if (text === 'メニュー' || text === 'menu')            return reply(buildMenu());
