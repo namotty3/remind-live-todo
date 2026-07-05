@@ -22,6 +22,7 @@ app.use((req, _res, next) => {
   next();
 });
 
+app.get('/ping', (_req, res) => res.send('ok'));
 app.use('/api', express.json(), require('./src/api'));
 app.use('/logo', express.static(path.join(__dirname, 'logo')));
 app.use(express.static(path.join(__dirname, 'public')));
