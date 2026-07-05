@@ -260,6 +260,7 @@
   <header>
     <img src="/logo/logo.png" alt="ロゴ" style="height:40px;object-fit:contain;">
     <div style="flex:1"></div>
+    <button onclick="openRichMenuSetup()" style="background:#4B5563">⚙️ リッチメニュー</button>
     <button onclick="doLogout()">ログアウト</button>
   </header>
 
@@ -688,6 +689,27 @@
   </div>
 </div>
 
+<!-- Rich Menu Setup Modal -->
+<div class="overlay" id="richmenu-overlay">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-head" style="background:#1f2937">
+      <h2>⚙️ リッチメニュー設定</h2>
+      <button class="x" onclick="close_('richmenu-overlay')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:#666;margin-bottom:12px">LINEのチャット画面下部に表示されるボタンメニューを登録します。</p>
+      <div style="border-radius:8px;overflow:hidden;margin-bottom:12px;border:1px solid #e5e7eb">
+        <canvas id="richmenu-canvas" style="width:100%;display:block"></canvas>
+      </div>
+      <div id="richmenu-status" style="font-size:13px;text-align:center;min-height:20px;color:#666"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-gray" onclick="close_('richmenu-overlay')">閉じる</button>
+      <button class="btn btn-blue" id="richmenu-btn" onclick="setupRichMenu()">設定する</button>
+    </div>
+  </div>
+</div>
+
 <script>
 let pw = '';
 let cal = null;
@@ -730,6 +752,98 @@ function doLogout() {
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('pw').value = '';
+}
+
+// ---- Rich Menu ----
+function openRichMenuSetup() {
+  open_('richmenu-overlay');
+  document.getElementById('richmenu-status').textContent = '';
+  document.getElementById('richmenu-status').style.color = '#666';
+  document.getElementById('richmenu-btn').disabled = false;
+  drawRichMenuCanvas();
+}
+
+function drawRichMenuCanvas() {
+  const canvas = document.getElementById('richmenu-canvas');
+  const W = 2500, H = 843;
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  const cells = [
+    { text: 'ライブ追加', sub: '➕ 新規登録', bg: '#059669' },
+    { text: 'ライブ一覧', sub: '📋 タスク確認', bg: '#047857' },
+    { text: '予定追加',   sub: '📅 新規登録', bg: '#2563eb' },
+    { text: '予定一覧',   sub: '🗓 スケジュール', bg: '#1d4ed8' },
+    { text: 'セトリ送って', sub: '🎵 セット図送信', bg: '#7c3aed' },
+    { text: 'ヘルプ',     sub: '❓ コマンド一覧', bg: '#374151' },
+  ];
+
+  const cols = 3, rows = 2;
+  const cw = Math.floor(W / cols);
+  const ch = Math.floor(H / rows);
+
+  cells.forEach((cell, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = col * cw;
+    const y = row * ch;
+    const w = col === cols - 1 ? W - x : cw;
+    const h = row === rows - 1 ? H - y : ch;
+
+    ctx.fillStyle = cell.bg;
+    ctx.fillRect(x, y, w, h);
+
+    const grad = ctx.createLinearGradient(x, y, x, y + h);
+    grad.addColorStop(0, 'rgba(255,255,255,0.07)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.18)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, w, h);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 100px -apple-system, "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(cell.text, x + w / 2, y + h / 2 - 35);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.72)';
+    ctx.font = '56px -apple-system, "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
+    ctx.fillText(cell.sub, x + w / 2, y + h / 2 + 70);
+  });
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+  ctx.lineWidth = 5;
+  for (let i = 1; i < cols; i++) {
+    ctx.beginPath(); ctx.moveTo(i * cw, 0); ctx.lineTo(i * cw, H); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(0, ch); ctx.lineTo(W, ch); ctx.stroke();
+}
+
+async function setupRichMenu() {
+  const canvas = document.getElementById('richmenu-canvas');
+  const status = document.getElementById('richmenu-status');
+  const btn = document.getElementById('richmenu-btn');
+  status.style.color = '#666';
+  status.textContent = '設定中...';
+  btn.disabled = true;
+  try {
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    const formData = new FormData();
+    formData.append('image', blob, 'richmenu.png');
+    const resp = await fetch('/api/richmenu/setup', {
+      method: 'POST',
+      headers: { 'x-password': pw },
+      body: formData
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error);
+    status.style.color = '#059669';
+    status.textContent = '✅ リッチメニューを設定しました！LINEを再起動すると反映されます。';
+  } catch (e) {
+    status.style.color = '#dc2626';
+    status.textContent = `❌ エラー: ${e.message}`;
+    btn.disabled = false;
+  }
 }
 
 // ---- API ----

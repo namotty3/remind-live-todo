@@ -355,6 +355,67 @@ router.delete('/wallet/:id', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- Rich Menu ----
+
+router.post('/richmenu/setup', auth, upload.single('image'), async (req, res) => {
+  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  if (!token) return res.status(500).json({ error: 'LINE_CHANNEL_ACCESS_TOKEN not set' });
+  if (!req.file) return res.status(400).json({ error: 'No image' });
+
+  const richMenuBody = {
+    size: { width: 2500, height: 843 },
+    selected: true,
+    name: 'バンドToDo メニュー',
+    chatBarText: 'メニュー',
+    areas: [
+      { bounds: { x: 0,    y: 0,   width: 833, height: 421 }, action: { type: 'message', label: 'ライブ追加',   text: 'ライブ追加'   } },
+      { bounds: { x: 833,  y: 0,   width: 833, height: 421 }, action: { type: 'message', label: 'ライブ一覧',   text: 'ライブ一覧'   } },
+      { bounds: { x: 1666, y: 0,   width: 834, height: 421 }, action: { type: 'message', label: '予定追加',     text: '予定追加'     } },
+      { bounds: { x: 0,    y: 421, width: 833, height: 422 }, action: { type: 'message', label: '予定一覧',     text: '予定一覧'     } },
+      { bounds: { x: 833,  y: 421, width: 833, height: 422 }, action: { type: 'message', label: 'セトリ送って', text: 'セトリ送って' } },
+      { bounds: { x: 1666, y: 421, width: 834, height: 422 }, action: { type: 'message', label: 'ヘルプ',       text: 'ヘルプ'       } },
+    ]
+  };
+
+  try {
+    // 1. リッチメニューを作成
+    const createRes = await fetch('https://api.line.me/v2/bot/richmenu', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(richMenuBody)
+    });
+    const createBody = await createRes.json();
+    if (!createRes.ok) throw new Error(`Create failed: ${JSON.stringify(createBody)}`);
+    const { richMenuId } = createBody;
+
+    // 2. 画像をアップロード
+    const uploadRes = await fetch(`https://api-data.line.me/v2/bot/richmenu/${richMenuId}/content`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'image/png' },
+      body: req.file.buffer
+    });
+    if (!uploadRes.ok) {
+      const err = await uploadRes.text();
+      throw new Error(`Upload failed: ${err}`);
+    }
+
+    // 3. デフォルトに設定
+    const defaultRes = await fetch(`https://api.line.me/v2/bot/user/all/richmenu/${richMenuId}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!defaultRes.ok) {
+      const err = await defaultRes.text();
+      throw new Error(`Set default failed: ${err}`);
+    }
+
+    res.json({ ok: true, richMenuId });
+  } catch (e) {
+    console.error('リッチメニュー設定エラー:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // 手動トリガー（テスト用）
 router.post('/debug/notify', auth, async (_req, res) => {
   try {
