@@ -41,9 +41,8 @@ async function clearSession(chatId) {
 
 async function handleMessage(event, client) {
   const userId = getChatId(event.source);
-  const replyToken = event.replyToken;
   const reply = (messages) =>
-    client.replyMessage({ replyToken, messages: Array.isArray(messages) ? messages : [messages] });
+    client.pushMessage({ to: userId, messages: Array.isArray(messages) ? messages : [messages] });
 
   // 画像メッセージ：awaiting_flyerセッション中なら画像をアップロード
   if (event.message.type === 'image') {
@@ -216,10 +215,9 @@ async function handlePostback(event, client) {
   const params = new URLSearchParams(event.postback.data);
   const action = params.get('action');
   const userId = getChatId(event.source);
-  const replyToken = event.replyToken;
 
   const reply = (messages) =>
-    client.replyMessage({ replyToken, messages: Array.isArray(messages) ? messages : [messages] });
+    client.pushMessage({ to: userId, messages: Array.isArray(messages) ? messages : [messages] });
 
   if (action === 'select_type') {
     return reply(buildDatePicker(decodeURIComponent(params.get('type'))));
