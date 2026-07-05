@@ -550,7 +550,11 @@
       <span class="field-label">タイトル</span>
       <input type="text" id="ae-title" placeholder="例：レコーディング">
       <span class="field-label">時間帯（任意）</span>
-      <input type="text" id="ae-time" placeholder="例：19:00〜20:00">
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="time" id="ae-start-time" style="flex:1">
+        <span style="color:#888">〜</span>
+        <input type="time" id="ae-end-time" style="flex:1">
+      </div>
       <span class="field-label">場所（任意）</span>
       <input type="text" id="ae-location" placeholder="例：スタジオA">
     </div>
@@ -678,7 +682,11 @@
       <span class="field-label">タイトル</span>
       <input type="text" id="ee-title">
       <span class="field-label">時間帯（任意）</span>
-      <input type="text" id="ee-time" placeholder="例：19:00〜20:00">
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="time" id="ee-start-time" style="flex:1">
+        <span style="color:#888">〜</span>
+        <input type="time" id="ee-end-time" style="flex:1">
+      </div>
       <span class="field-label">場所（任意）</span>
       <input type="text" id="ee-location">
     </div>
@@ -1751,11 +1759,26 @@ async function submitAddLive() {
 }
 
 // ---- Add Event ----
+function buildTimeRange(startId, endId) {
+  const s = document.getElementById(startId).value;
+  const e = document.getElementById(endId).value;
+  if (!s && !e) return '';
+  if (s && e) return `${s}〜${e}`;
+  return s || e;
+}
+
+function parseTimeRange(range, startId, endId) {
+  const parts = (range || '').split('〜');
+  document.getElementById(startId).value = parts[0] || '';
+  document.getElementById(endId).value = parts[1] || '';
+}
+
 function openAddEvent() {
   close_('choice-modal');
   document.getElementById('ae-date').value = pendingDate;
   document.getElementById('ae-title').value = '';
-  document.getElementById('ae-time').value = '';
+  document.getElementById('ae-start-time').value = '';
+  document.getElementById('ae-end-time').value = '';
   document.getElementById('ae-location').value = '';
   open_('add-event-overlay');
 }
@@ -1766,7 +1789,7 @@ async function submitAddEvent() {
   if (!date) { alert('日付を選んでください'); return; }
   if (!title) { alert('タイトルを入力してください'); return; }
   try {
-    await api('POST', '/events', { date, title, time_range: document.getElementById('ae-time').value.trim(), location: document.getElementById('ae-location').value.trim() });
+    await api('POST', '/events', { date, title, time_range: buildTimeRange('ae-start-time', 'ae-end-time'), location: document.getElementById('ae-location').value.trim() });
     close_('add-event-overlay');
     await refresh();
   } catch (e) { alert('登録に失敗しました: ' + e.message); }
@@ -1891,7 +1914,7 @@ function openEditEvent() {
   close_('event-detail-overlay');
   document.getElementById('ee-date').value = ev.date;
   document.getElementById('ee-title').value = ev.title;
-  document.getElementById('ee-time').value = ev.time_range || '';
+  parseTimeRange(ev.time_range, 'ee-start-time', 'ee-end-time');
   document.getElementById('ee-location').value = ev.location || '';
   open_('edit-event-overlay');
 }
@@ -1900,7 +1923,7 @@ async function submitEditEvent() {
   const title = document.getElementById('ee-title').value.trim();
   if (!title) { alert('タイトルを入力してください'); return; }
   try {
-    await api('PUT', `/events/${currentEventId}`, { date: document.getElementById('ee-date').value, title, time_range: document.getElementById('ee-time').value.trim(), location: document.getElementById('ee-location').value.trim() });
+    await api('PUT', `/events/${currentEventId}`, { date: document.getElementById('ee-date').value, title, time_range: buildTimeRange('ee-start-time', 'ee-end-time'), location: document.getElementById('ee-location').value.trim() });
     close_('edit-event-overlay');
     await refresh();
   } catch (e) { alert('更新に失敗しました: ' + e.message); }

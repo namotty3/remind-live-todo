@@ -210,10 +210,10 @@ async function handleSessionInput(session, text, chatId, reply) {
 
   if (session.step === 'event_location') {
     const location = isSkip ? null : text;
-    await setSession(chatId, 'awaiting_event_time', { ...session.data, location });
+    await setSession(chatId, 'awaiting_event_start', { ...session.data, location });
     return reply({
       type: 'text',
-      text: '🕐 時間帯を入力してください（任意）\n例：19:00〜20:00',
+      text: '🕐 開始時刻を入力してください（任意）\n例：19:00',
       quickReply: {
         items: [
           { type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } },
@@ -223,9 +223,30 @@ async function handleSessionInput(session, text, chatId, reply) {
     });
   }
 
-  if (session.step === 'awaiting_event_time') {
-    const timeRange = isSkip ? null : text;
-    const { title, date, location } = session.data;
+  if (session.step === 'awaiting_event_start') {
+    const startTime = isSkip ? null : text;
+    await setSession(chatId, 'awaiting_event_end', { ...session.data, startTime });
+    if (!startTime) {
+      const { title, date, location } = session.data;
+      await clearSession(chatId);
+      return handleAddEvent(title, date, location, null, chatId, reply);
+    }
+    return reply({
+      type: 'text',
+      text: '🕐 終了時刻を入力してください（任意）\n例：20:00',
+      quickReply: {
+        items: [
+          { type: 'action', action: { type: 'message', label: 'スキップ', text: 'スキップ' } },
+          { type: 'action', action: { type: 'message', label: 'キャンセル', text: 'キャンセル' } }
+        ]
+      }
+    });
+  }
+
+  if (session.step === 'awaiting_event_end') {
+    const endTime = isSkip ? null : text;
+    const { title, date, location, startTime } = session.data;
+    const timeRange = startTime ? (endTime ? `${startTime}〜${endTime}` : startTime) : null;
     await clearSession(chatId);
     return handleAddEvent(title, date, location, timeRange, chatId, reply);
   }
