@@ -44,9 +44,12 @@ async function handleMessage(event, client) {
   const userId = getChatId(event.source);
   const replyToken = event.replyToken;
   console.log(`[handleMessage] sourceType=${event.source.type} userId=${userId} text=${event.message?.text}`);
-  const reply = (messages) =>
-    client.replyMessage({ replyToken, messages: Array.isArray(messages) ? messages : [messages] })
-      .catch(e => console.error('[replyMessage ERROR]', e.message));
+  const reply = (messages) => {
+    console.log('[replyMessage CALL] replyToken=', replyToken?.slice(0,10));
+    return client.replyMessage({ replyToken, messages: Array.isArray(messages) ? messages : [messages] })
+      .then(() => console.log('[replyMessage OK]'))
+      .catch(e => console.error('[replyMessage ERROR]', e.statusCode, e.message));
+  };
 
   // 画像メッセージ：awaiting_flyerセッション中なら画像をアップロード
   if (event.message.type === 'image') {
