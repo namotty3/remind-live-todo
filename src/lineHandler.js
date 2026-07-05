@@ -25,7 +25,8 @@ function formatDate(dateStr) {
 // ---- セッション管理 ----
 
 async function getSession(chatId) {
-  const { data } = await supabase.from('sessions').select('*').eq('chat_id', chatId).single();
+  const { data, error } = await supabase.from('sessions').select('*').eq('chat_id', chatId).maybeSingle();
+  if (error) console.error('[getSession ERROR]', chatId, error.message);
   return data;
 }
 
@@ -42,8 +43,10 @@ async function clearSession(chatId) {
 async function handleMessage(event, client) {
   const userId = getChatId(event.source);
   const replyToken = event.replyToken;
+  console.log(`[handleMessage] sourceType=${event.source.type} userId=${userId} text=${event.message?.text}`);
   const reply = (messages) =>
-    client.replyMessage({ replyToken, messages: Array.isArray(messages) ? messages : [messages] });
+    client.replyMessage({ replyToken, messages: Array.isArray(messages) ? messages : [messages] })
+      .catch(e => console.error('[replyMessage ERROR]', e.message));
 
   // 画像メッセージ：awaiting_flyerセッション中なら画像をアップロード
   if (event.message.type === 'image') {
@@ -217,6 +220,7 @@ async function handlePostback(event, client) {
   const action = params.get('action');
   const userId = getChatId(event.source);
   const replyToken = event.replyToken;
+  console.log(`[handlePostback] sourceType=${event.source.type} userId=${userId} action=${action}`);
 
   const reply = (messages) =>
     client.replyMessage({ replyToken, messages: Array.isArray(messages) ? messages : [messages] });
