@@ -94,7 +94,7 @@ async function handleMessage(event, client) {
   }
 
   const isMainCommand = ['メニュー', 'menu', 'ライブ追加', '追加', 'ライブ一覧', '一覧',
-    'ライブ削除', '削除', '予定追加', '予定一覧', 'ヘルプ', 'help', 'ID確認', 'セトリ送って', 'セトリ'].includes(text);
+    'ライブ削除', '削除', '予定追加', '予定一覧', '動画', 'ヘルプ', 'help', 'ID確認', 'セトリ送って', 'セトリ'].includes(text);
 
   if (session) {
     if (text === 'キャンセル' || isMainCommand) {
@@ -112,6 +112,7 @@ async function handleMessage(event, client) {
   if (text === 'ライブ削除' || text === '削除')          return handleListLivesForDelete(userId, reply);
   if (text === '予定追加')                               return handleStartAddEvent(userId, reply);
   if (text === '予定一覧')                               return handleListEvents(userId, reply);
+  if (text === '動画')                                   return handleListVideos(reply);
   if (/^タスク \d+$/.test(text))                         return handleShowTasks(parseInt(text.split(' ')[1]), userId, reply);
   if (/^チェック解除 \d+$/.test(text))                   return handleUncheck(parseInt(text.split(' ')[1]), userId, reply);
   if (/^チェック \d+$/.test(text))                       return handleCheck(parseInt(text.split(' ')[1]), userId, reply);
@@ -474,6 +475,7 @@ function buildMenu() {
           makeBtn('➕ 予定追加',   '予定追加',   '#4A90D9'),
           makeBtn('📋 予定一覧',   '予定一覧',   '#4A90D9'),
           separator('── その他 ──'),
+          makeBtn('📹 動画',       '動画',       '#c0392b'),
           makeBtn('❓ ヘルプ',     'ヘルプ',     '#888888'),
         ]
       }
@@ -969,9 +971,12 @@ function helpText() {
 「ライブ追加」→ 種別・日付・ライブ名・場所を順番に入力
 「ライブ一覧」→ カードで一覧表示・タスク確認
 「ライブ削除」→ 削除したいライブを選択・確認後に削除
+「予定追加」→ タイトル・日付・時間帯・場所を入力
+「予定一覧」→ 今後の予定を一覧表示
+「動画」→ ライブ動画一覧を表示
 カードの「タスクを見る」→ 各タスクにDoneボタン
 
-⚠️ 期限切れ未完了タスクは2日ごとに通知`;
+⚠️ ライブ・予定は2日前に通知`;
 }
 
 async function handleSendSetlistByDrum(liveId, drumPattern, userId, reply) {
@@ -1033,6 +1038,63 @@ async function handleSendSetlist(userId, reply) {
     { type: 'text', text: `🎵 セット図\n${dateStr}　${live.name || live.type}` },
     { type: 'image', originalContentUrl: live.setlist_image_url, previewImageUrl: live.setlist_image_url },
   ]);
+}
+
+async function handleListVideos(reply) {
+  const { data: videos, error } = await supabase
+    .from('live_videos')
+    .select('*')
+    .order('date', { ascending: false })
+    .limit(5);
+
+  if (error || !videos || videos.length === 0) {
+    return reply({ type: 'text', text: '📹 登録済みの動画はありません。\nWebポータルから動画を登録できます。' });
+  }
+
+  const bubbles = videos.map(v => {
+    const [y, m, d] = v.date.split('-');
+    const dateStr = `${y}年${parseInt(m)}月${parseInt(d)}日`;
+
+    const bodyContents = [
+      { type: 'text', text: dateStr, size: 'sm', color: '#888888' }
+    ];
+    if (v.venue) {
+      bodyContents.push({ type: 'text', text: `📍 ${v.venue}`, size: 'sm', color: '#666666', margin: 'sm' });
+    }
+    if (v.setlist) {
+      const songs = v.setlist.split(',').slice(0, 4).map((s, i) => `${i + 1}. ${s.trim()}`).join('\n');
+      const rest = v.setlist.split(',').length - 4;
+      bodyContents.push({
+        type: 'text',
+        text: songs + (rest > 0 ? `\n…他${rest}曲` : ''),
+        size: 'sm', color: '#333333', wrap: true, margin: 'sm'
+      });
+    }
+
+    return {
+      type: 'bubble',
+      header: {
+        type: 'box', layout: 'vertical', backgroundColor: '#c0392b', paddingAll: 'lg',
+        contents: [
+          { type: 'text', text: '📹 ライブ動画', color: '#ffffff', size: 'xs' },
+          { type: 'text', text: v.live_name || dateStr, color: '#ffffff', weight: 'bold', size: 'lg', wrap: true }
+        ]
+      },
+      body: { type: 'box', layout: 'vertical', spacing: 'none', contents: bodyContents },
+      footer: {
+        type: 'box', layout: 'vertical', paddingTop: 'none',
+        contents: [
+          { type: 'button', action: { type: 'uri', label: '▶️ YouTubeで見る', uri: v.youtube_url }, style: 'primary', color: '#c0392b' }
+        ]
+      }
+    };
+  });
+
+  return reply({
+    type: 'flex',
+    altText: `📹 ライブ動画（${videos.length}件）`,
+    contents: bubbles.length === 1 ? bubbles[0] : { type: 'carousel', contents: bubbles }
+  });
 }
 
 module.exports = { handleMessage, handlePostback };
