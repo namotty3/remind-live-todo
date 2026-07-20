@@ -1,6 +1,8 @@
 const cron = require('node-cron');
 const supabase = require('./database');
 const { client } = require('./lineClient');
+const { ImapFlow } = require('imapflow');
+const { simpleParser } = require('mailparser');
 
 function todayJST() {
   const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
@@ -20,7 +22,8 @@ function formatDate(dateStr) {
 
 function initScheduler() {
   cron.schedule('0 0 * * *', () => checkAndNotify());
-  console.log('スケジューラー起動（毎日9:00 JST）');
+  cron.schedule('*/5 * * * *', () => checkNewEmails().catch(e => console.error('[メールチェックエラー]', e.message)));
+  console.log('スケジューラー起動（毎日9:00 JST + メール5分ごと）');
 }
 
 async function checkAndNotify() {
@@ -175,6 +178,68 @@ async function notifyUpcomingEvents() {
     } catch (err) {
       console.error(`予定通知失敗 userId=${userId}:`, err.message);
     }
+  }
+}
+
+async function checkNewEmails() {
+  const gmailUser = process.env.GMAIL_USER;
+  const gmailPass = process.env.GMAIL_APP_PASSWORD;
+  const to = process.env.CALENDAR_CHAT_ID;
+  if (!gmailUser || !gmailPass || !to) return;
+
+  const imap = new ImapFlow({
+    host: 'imap.gmail.com',
+    port: 993,
+    secure: true,
+    auth: { user: gmailUser, pass: gmailPass },
+    logger: false,
+  });
+
+  try {
+    await imap.connect();
+    const lock = await imap.getMailboxLock('INBOX');
+    try {
+      const uids = await imap.search({ seen: false }, { uid: true });
+      if (!uids || uids.length === 0) return;
+
+      // 最大5件に絞る（古いものから順）
+      const targets = uids.slice(0, 5);
+      console.log(`[メールチェック] 未読 ${uids.length} 件（最大5件処理）`);
+
+      for await (const msg of imap.fetch(targets.join(','), { source: true }, { uid: true })) {
+        try {
+          const parsed = await simpleParser(msg.source);
+          const from = parsed.from?.text || '不明';
+          const subject = parsed.subject || '(件名なし)';
+          const dateStr = parsed.date
+            ? parsed.date.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
+            : '';
+          const body = (parsed.text || '').replace(/\r\n/g, '\n').trim();
+          const bodyPreview = body.length > 300 ? body.slice(0, 300) + '…' : body;
+
+          const lines = [
+            '📧 新着メール',
+            '',
+            `差出人: ${from}`,
+            `件名: ${subject}`,
+          ];
+          if (dateStr) lines.push(`受信: ${dateStr}`);
+          if (bodyPreview) lines.push('', '─────', bodyPreview);
+
+          await client.pushMessage({ to, messages: [{ type: 'text', text: lines.join('\n') }] });
+          await imap.messageFlagsAdd(`${msg.uid}`, ['\\Seen'], { uid: true });
+          console.log(`[メール通知] 件名: ${subject} → 送信完了`);
+        } catch (parseErr) {
+          console.error('[メール解析エラー]', parseErr.message);
+        }
+      }
+    } finally {
+      lock.release();
+    }
+  } catch (e) {
+    console.error('[Gmail接続エラー]', e.message);
+  } finally {
+    await imap.logout().catch(() => {});
   }
 }
 
