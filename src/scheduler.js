@@ -208,6 +208,8 @@ async function checkNewEmails() {
       const targets = uids.slice(0, 5);
       console.log(`[メールチェック] 未読 ${uids.length} 件（最大5件処理）`);
 
+      const notifiedUids = [];
+
       for await (const msg of imap.fetch(targets.join(','), { source: true }, { uid: true })) {
         try {
           const parsed = await simpleParser(msg.source);
@@ -229,11 +231,16 @@ async function checkNewEmails() {
           if (bodyPreview) lines.push('', '─────', bodyPreview);
 
           await client.pushMessage({ to, messages: [{ type: 'text', text: lines.join('\n') }] });
-          await imap.messageFlagsAdd(`${msg.uid}`, ['\\Seen'], { uid: true });
+          notifiedUids.push(msg.uid);
           console.log(`[メール通知] 件名: ${subject} → 送信完了`);
         } catch (parseErr) {
           console.error('[メール解析エラー]', parseErr.message);
         }
+      }
+
+      // fetchループ完了後にまとめて既読化
+      if (notifiedUids.length > 0) {
+        await imap.messageFlagsAdd(notifiedUids.join(','), ['\\Seen'], { uid: true });
       }
     } finally {
       lock.release();
