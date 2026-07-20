@@ -199,7 +199,9 @@ async function checkNewEmails() {
     await imap.connect();
     const lock = await imap.getMailboxLock('INBOX');
     try {
-      const uids = await imap.search({ seen: false }, { uid: true });
+      // 過去2日以内の未読メールのみ対象
+      const since = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+      const uids = await imap.search({ seen: false, since }, { uid: true });
       if (!uids || uids.length === 0) return;
 
       // 最大5件に絞る（古いものから順）
