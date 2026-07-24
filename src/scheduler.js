@@ -213,7 +213,15 @@ async function checkNewEmails() {
       for await (const msg of imap.fetch(targets.join(','), { source: true }, { uid: true })) {
         try {
           const parsed = await simpleParser(msg.source);
+          const fromAddresses = parsed.from?.value?.map(a => a.address) || [];
           const from = parsed.from?.text || '不明';
+
+          // noreply@thebase.in からのメールのみ通知
+          if (!fromAddresses.some(addr => addr === 'noreply@thebase.in')) {
+            notifiedUids.push(msg.uid); // 既読化だけして通知しない
+            continue;
+          }
+
           const subject = parsed.subject || '(件名なし)';
           const dateStr = parsed.date
             ? parsed.date.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
