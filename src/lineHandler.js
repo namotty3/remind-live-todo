@@ -44,9 +44,27 @@ async function handleMessage(event, client) {
   const userId = getChatId(event.source);
   const replyToken = event.replyToken;
   console.log(`[handleMessage] sourceType=${event.source.type} userId=${userId} text=${event.message?.text}`);
+  const isGroup = event.source.type === 'group';
+  const groupQuickReply = {
+    items: [
+      { type: 'action', action: { type: 'message', label: '📋 ライブ一覧', text: 'ライブ一覧' } },
+      { type: 'action', action: { type: 'message', label: '📅 予定一覧', text: '予定一覧' } },
+      { type: 'action', action: { type: 'message', label: '➕ ライブ追加', text: 'ライブ追加' } },
+      { type: 'action', action: { type: 'message', label: '☰ メニュー', text: 'メニュー' } },
+    ]
+  };
   const reply = (messages) => {
     console.log('[replyMessage CALL] replyToken=', replyToken?.slice(0,10));
-    return client.replyMessage({ replyToken, messages: Array.isArray(messages) ? messages : [messages] })
+    let msgs = Array.isArray(messages) ? messages : [messages];
+    // グループチャットでは、quickReplyが未設定の最後のメッセージにショートカットボタンを付加
+    if (isGroup) {
+      const last = msgs[msgs.length - 1];
+      if (last && !last.quickReply) {
+        msgs = [...msgs];
+        msgs[msgs.length - 1] = { ...last, quickReply: groupQuickReply };
+      }
+    }
+    return client.replyMessage({ replyToken, messages: msgs })
       .then(() => console.log('[replyMessage OK]'))
       .catch(e => console.error('[replyMessage ERROR]', e.statusCode, e.message));
   };
