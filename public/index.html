@@ -488,6 +488,10 @@
         <span class="field-label">対バン（任意）</span>
         <textarea id="al-taiban" placeholder="例：バンドA / バンドB / バンドC" rows="2"></textarea>
       </div>
+      <span class="field-label">公開設定</span>
+      <label style="display:flex;align-items:center;gap:6px;font-size:14px;margin-top:4px;">
+        <input type="checkbox" id="al-public" checked> リンク集ページに公開する
+      </label>
       <span class="field-label">ライブ名（任意）</span>
       <input type="text" id="al-name" placeholder="例：○○主催ライブ">
       <span class="field-label">場所（任意）</span>
@@ -603,6 +607,10 @@
         <span class="field-label">対バン（任意）</span>
         <textarea id="el-taiban" placeholder="例：バンドA / バンドB / バンドC" rows="2"></textarea>
       </div>
+      <span class="field-label">公開設定</span>
+      <label style="display:flex;align-items:center;gap:6px;font-size:14px;margin-top:4px;">
+        <input type="checkbox" id="el-public"> リンク集ページに公開する
+      </label>
       <span class="field-label">ライブ名（任意）</span>
       <input type="text" id="el-name">
       <span class="field-label">場所（任意）</span>
@@ -1737,6 +1745,7 @@ function openAddLive() {
   document.getElementById('al-desc').value = '';
   document.getElementById('al-taiban').value = '';
   document.getElementById('al-notes').value = '';
+  document.getElementById('al-public').checked = true;
   toggleTaibanField('al');
   clearFlyer('al');
   addSetlist = [];
@@ -1749,7 +1758,7 @@ async function submitAddLive() {
   if (!date) { alert('日付を選んでください'); return; }
   try {
     const alType = document.getElementById('al-type').value;
-    const live = await api('POST', '/lives', { date, type: alType, name: document.getElementById('al-name').value.trim(), venue: document.getElementById('al-venue').value.trim(), description: document.getElementById('al-desc').value.trim(), flyer_url: document.getElementById('al-flyer-url').value, setlist: addSetlist.length ? addSetlist.join(',') : '', notes: document.getElementById('al-notes').value.trim(), stage_time: document.getElementById('al-stage-time').value.trim(), drum_pattern: document.querySelector('input[name="al-drum"]:checked')?.value || '2タム', equipment: document.getElementById('al-equipment').value.trim(), taiban: alType === '主催' ? document.getElementById('al-taiban').value.trim() : '' });
+    const live = await api('POST', '/lives', { date, type: alType, name: document.getElementById('al-name').value.trim(), venue: document.getElementById('al-venue').value.trim(), description: document.getElementById('al-desc').value.trim(), flyer_url: document.getElementById('al-flyer-url').value, setlist: addSetlist.length ? addSetlist.join(',') : '', notes: document.getElementById('al-notes').value.trim(), stage_time: document.getElementById('al-stage-time').value.trim(), drum_pattern: document.querySelector('input[name="al-drum"]:checked')?.value || '2タム', equipment: document.getElementById('al-equipment').value.trim(), taiban: alType === '主催' ? document.getElementById('al-taiban').value.trim() : '', is_public: document.getElementById('al-public').checked });
     if (addSetlist.length > 0) {
       await uploadSetlistImage('al', live.id, live.date, live.name || live.type, addSetlist);
     }
@@ -1805,6 +1814,7 @@ function openLiveDetail(live) {
 
   const done = (live.tasks || []).filter(t => t.is_done).length;
   let meta = `<p>📅 <strong>${fmtDate(live.date)}</strong></p><p>🎵 ${live.type}</p>`;
+  meta += `<p>${live.is_public !== false ? '🌐 リンク集ページに公開中' : '🔒 非公開'}</p>`;
   if (live.venue) meta += `<p>📍 ${live.venue}</p>`;
   if (live.description) meta += `<p>📝 ${live.description}</p>`;
   if (live.setlist) {
@@ -1866,6 +1876,7 @@ function openEditLive() {
   document.getElementById('el-stage-time').value = live.stage_time || '';
   document.getElementById('el-equipment').value = live.equipment || '';
   document.getElementById('el-taiban').value = live.taiban || '';
+  document.getElementById('el-public').checked = live.is_public !== false;
   toggleTaibanField('el');
   const dp = live.drum_pattern || '2タム';
   document.querySelectorAll('input[name="el-drum"]').forEach(r => { r.checked = r.value === dp; });
@@ -1878,7 +1889,7 @@ function openEditLive() {
 async function submitEditLive() {
   try {
     const elType = document.getElementById('el-type').value;
-    const live = await api('PUT', `/lives/${currentLiveId}`, { date: document.getElementById('el-date').value, type: elType, name: document.getElementById('el-name').value.trim(), venue: document.getElementById('el-venue').value.trim(), description: document.getElementById('el-desc').value.trim(), flyer_url: document.getElementById('el-flyer-url').value, setlist: editSetlist.length ? editSetlist.join(',') : '', notes: document.getElementById('el-notes').value.trim(), stage_time: document.getElementById('el-stage-time').value.trim(), drum_pattern: document.querySelector('input[name="el-drum"]:checked')?.value || '2タム', equipment: document.getElementById('el-equipment').value.trim(), taiban: elType === '主催' ? document.getElementById('el-taiban').value.trim() : '' });
+    const live = await api('PUT', `/lives/${currentLiveId}`, { date: document.getElementById('el-date').value, type: elType, name: document.getElementById('el-name').value.trim(), venue: document.getElementById('el-venue').value.trim(), description: document.getElementById('el-desc').value.trim(), flyer_url: document.getElementById('el-flyer-url').value, setlist: editSetlist.length ? editSetlist.join(',') : '', notes: document.getElementById('el-notes').value.trim(), stage_time: document.getElementById('el-stage-time').value.trim(), drum_pattern: document.querySelector('input[name="el-drum"]:checked')?.value || '2タム', equipment: document.getElementById('el-equipment').value.trim(), taiban: elType === '主催' ? document.getElementById('el-taiban').value.trim() : '', is_public: document.getElementById('el-public').checked });
     if (editSetlist.length > 0) {
       await uploadSetlistImage('el', currentLiveId, live.date, live.name || live.type, editSetlist);
     }
