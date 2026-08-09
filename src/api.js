@@ -387,7 +387,7 @@ router.post('/richmenu/setup', auth, upload.single('image'), async (req, res) =>
       { bounds: { x: 1666, y: 0,   width: 834, height: 421 }, action: { type: 'message', label: '予定追加',     text: '予定追加'     } },
       { bounds: { x: 0,    y: 421, width: 833, height: 422 }, action: { type: 'message', label: '予定一覧',     text: '予定一覧'     } },
       { bounds: { x: 833,  y: 421, width: 833, height: 422 }, action: { type: 'message', label: 'セトリ送って', text: 'セトリ送って' } },
-      { bounds: { x: 1666, y: 421, width: 834, height: 422 }, action: { type: 'message', label: 'ヘルプ',       text: 'ヘルプ'       } },
+      { bounds: { x: 1666, y: 421, width: 834, height: 422 }, action: { type: 'message', label: 'リンク集更新', text: 'リンク集を更新して' } },
     ]
   };
 

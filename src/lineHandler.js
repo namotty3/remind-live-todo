@@ -50,6 +50,7 @@ async function handleMessage(event, client) {
       { type: 'action', action: { type: 'message', label: '📋 ライブ一覧', text: 'ライブ一覧' } },
       { type: 'action', action: { type: 'message', label: '📅 予定一覧', text: '予定一覧' } },
       { type: 'action', action: { type: 'message', label: '➕ ライブ追加', text: 'ライブ追加' } },
+      { type: 'action', action: { type: 'message', label: '🔗 リンク集更新', text: 'リンク集を更新して' } },
       { type: 'action', action: { type: 'message', label: '☰ メニュー', text: 'メニュー' } },
     ]
   };
