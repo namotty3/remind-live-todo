@@ -44,7 +44,7 @@ async function handleMessage(event, client) {
   const userId = getChatId(event.source);
   const replyToken = event.replyToken;
   console.log(`[handleMessage] sourceType=${event.source.type} userId=${userId} text=${event.message?.text}`);
-  const isGroup = event.source.type === 'group';
+  const isGroup = event.source.type === 'group' || event.source.type === 'room';
   const groupQuickReply = {
     items: [
       { type: 'action', action: { type: 'message', label: '📋 ライブ一覧', text: 'ライブ一覧' } },
@@ -139,7 +139,7 @@ async function handleMessage(event, client) {
   if (text === 'ヘルプ' || text === 'help')              return reply({ type: 'text', text: helpText() });
   if (text === 'ID確認')                                 return reply({ type: 'text', text: `このチャットのID:\n${userId}` });
   if (text === 'セトリ送って' || text === 'セトリ')      return handleSendSetlist(userId, reply);
-  if (text === 'リンク集を更新して' || text === 'リンク集更新') return handleUpdateLinkPage(userId, reply, client);
+  if (text === 'リンク集を更新して' || text === 'リンク集更新') return handleUpdateLinkPage(userId, reply, client, isGroup ? groupQuickReply : null);
   if (text.startsWith('ライブ追加 '))                    return handleAddLiveText(text, userId, reply);
 }
 
@@ -986,16 +986,18 @@ async function handleDeleteLive(liveId, userId, reply) {
   return reply({ type: 'text', text: `🗑️ 「${label}」を削除しました。` });
 }
 
-async function handleUpdateLinkPage(userId, reply, client) {
+async function handleUpdateLinkPage(userId, reply, client, quickReply) {
   reply({ type: 'text', text: '🔗 リンク集ページを更新しています…' });
   try {
     const { updateLinkPage } = require('./linkPage');
     const url = await updateLinkPage();
     const text = url ? `✅ リンク集ページを更新しました！\n${url}` : '✅ リンク集ページを更新しました！';
-    await client.pushMessage({ to: userId, messages: [{ type: 'text', text }] });
+    const message = quickReply ? { type: 'text', text, quickReply } : { type: 'text', text };
+    await client.pushMessage({ to: userId, messages: [message] });
   } catch (e) {
     console.error('[リンク集更新エラー]', e.message);
-    await client.pushMessage({ to: userId, messages: [{ type: 'text', text: `❌ リンク集の更新に失敗しました。\n${e.message}` }] });
+    const errMsg = { type: 'text', text: `❌ リンク集の更新に失敗しました。\n${e.message}` };
+    await client.pushMessage({ to: userId, messages: [quickReply ? { ...errMsg, quickReply } : errMsg] });
   }
 }
 
