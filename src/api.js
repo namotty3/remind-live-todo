@@ -76,12 +76,10 @@ router.post('/auth', (req, res) => {
 // リンク集ページなど外部の公開ページ用。個人情報・財務データは一切返さない。
 router.get('/public/lives', async (_req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
-  const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabase
     .from('lives')
-    .select('date, type, name, venue, description, stage_time, flyer_url')
+    .select('date, type, name, venue, description, stage_time, flyer_url, taiban')
     .eq('is_public', true)
-    .gte('date', today)
     .order('date');
   if (error) return res.status(500).json({ error: error.message });
   res.json(data || []);
