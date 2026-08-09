@@ -112,7 +112,8 @@ async function handleMessage(event, client) {
   }
 
   const isMainCommand = ['メニュー', 'menu', 'ライブ追加', '追加', 'ライブ一覧', '一覧',
-    'ライブ削除', '削除', '予定追加', '予定一覧', '動画', 'ヘルプ', 'help', 'ID確認', 'セトリ送って', 'セトリ'].includes(text);
+    'ライブ削除', '削除', '予定追加', '予定一覧', '動画', 'ヘルプ', 'help', 'ID確認', 'セトリ送って', 'セトリ',
+    'リンク集を更新して', 'リンク集更新'].includes(text);
 
   if (session) {
     if (text === 'キャンセル' || isMainCommand) {
@@ -137,6 +138,7 @@ async function handleMessage(event, client) {
   if (text === 'ヘルプ' || text === 'help')              return reply({ type: 'text', text: helpText() });
   if (text === 'ID確認')                                 return reply({ type: 'text', text: `このチャットのID:\n${userId}` });
   if (text === 'セトリ送って' || text === 'セトリ')      return handleSendSetlist(userId, reply);
+  if (text === 'リンク集を更新して' || text === 'リンク集更新') return handleUpdateLinkPage(userId, reply, client);
   if (text.startsWith('ライブ追加 '))                    return handleAddLiveText(text, userId, reply);
 }
 
@@ -494,6 +496,7 @@ function buildMenu() {
           makeBtn('📋 予定一覧',   '予定一覧',   '#4A90D9'),
           separator('── その他 ──'),
           makeBtn('📹 動画',       '動画',       '#c0392b'),
+          makeBtn('🔗 リンク集更新', 'リンク集を更新して', '#333333'),
           makeBtn('❓ ヘルプ',     'ヘルプ',     '#888888'),
         ]
       }
@@ -982,6 +985,19 @@ async function handleDeleteLive(liveId, userId, reply) {
   return reply({ type: 'text', text: `🗑️ 「${label}」を削除しました。` });
 }
 
+async function handleUpdateLinkPage(userId, reply, client) {
+  reply({ type: 'text', text: '🔗 リンク集ページを更新しています…' });
+  try {
+    const { updateLinkPage } = require('./linkPage');
+    const url = await updateLinkPage();
+    const text = url ? `✅ リンク集ページを更新しました！\n${url}` : '✅ リンク集ページを更新しました！';
+    await client.pushMessage({ to: userId, messages: [{ type: 'text', text }] });
+  } catch (e) {
+    console.error('[リンク集更新エラー]', e.message);
+    await client.pushMessage({ to: userId, messages: [{ type: 'text', text: `❌ リンク集の更新に失敗しました。\n${e.message}` }] });
+  }
+}
+
 function helpText() {
   return `🎵 バンドライブToDo
 
@@ -992,6 +1008,7 @@ function helpText() {
 「予定追加」→ タイトル・日付・時間帯・場所を入力
 「予定一覧」→ 今後の予定を一覧表示
 「動画」→ ライブ動画一覧を表示
+「リンク集を更新して」→ 公開中のリンク集ページに最新のライブ予定を反映
 カードの「タスクを見る」→ 各タスクにDoneボタン
 
 ⚠️ ライブ・予定は2日前に通知`;
