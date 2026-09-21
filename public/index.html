@@ -497,7 +497,7 @@
       <span class="field-label">場所（任意）</span>
       <input type="text" id="al-venue" placeholder="例：新宿ロフト">
       <span class="field-label">詳細（任意）</span>
-      <input type="text" id="al-desc" placeholder="例：出演時間 19:00〜、セット30分">
+      <textarea id="al-desc" rows="3" placeholder="例：出演時間 19:00〜、セット30分"></textarea>
       <span class="field-label">フライヤー（任意）</span>
       <input type="file" id="al-flyer-file" accept="image/*" style="display:none" onchange="uploadFlyer('al')">
       <div class="flyer-box" id="al-flyer-box" onclick="document.getElementById('al-flyer-file').click()">
@@ -616,7 +616,7 @@
       <span class="field-label">場所（任意）</span>
       <input type="text" id="el-venue">
       <span class="field-label">詳細（任意）</span>
-      <input type="text" id="el-desc">
+      <textarea id="el-desc" rows="3"></textarea>
       <span class="field-label">フライヤー（任意）</span>
       <input type="file" id="el-flyer-file" accept="image/*" style="display:none" onchange="uploadFlyer('el')">
       <div class="flyer-box" id="el-flyer-box" onclick="document.getElementById('el-flyer-file').click()">
@@ -1816,7 +1816,7 @@ function openLiveDetail(live) {
   let meta = `<p>📅 <strong>${fmtDate(live.date)}</strong></p><p>🎵 ${live.type}</p>`;
   meta += `<p>${live.is_public !== false ? '🌐 リンク集ページに公開中' : '🔒 非公開'}</p>`;
   if (live.venue) meta += `<p>📍 ${live.venue}</p>`;
-  if (live.description) meta += `<p>📝 ${live.description}</p>`;
+  if (live.description) meta += `<p style="white-space:pre-wrap">📝 ${live.description}</p>`;
   if (live.setlist) {
     const songs = live.setlist.split(',').map((s,i) => `${i+1}. ${s.trim()}`).join('<br>');
     meta += `<p style="margin-top:8px"><strong>🎵 セトリ</strong><br><span style="font-size:13px;line-height:1.8">${songs}</span></p>`;
