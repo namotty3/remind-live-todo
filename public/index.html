@@ -124,6 +124,11 @@
     }
     .song-chip:hover { background: #00B900; color: #fff; }
     .song-chip.used { background: #eee; border-color: #ccc; color: #aaa; cursor: default; }
+    .setlist-custom { display: flex; gap: 6px; margin-top: 10px; }
+    .setlist-custom input { flex: 1; padding: 8px 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; font-family: inherit; box-sizing: border-box; }
+    .setlist-custom input:focus { border-color: #00B900; }
+    .sl-add-btn { padding: 8px 14px; background: #00B900; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; white-space: nowrap; }
+    .sl-add-btn:hover { background: #009900; }
     .setlist-list { margin-top: 10px; }
     .setlist-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #f5f5f5; }
     .setlist-num { width: 22px; height: 22px; background: #00B900; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; flex-shrink: 0; }
@@ -416,7 +421,11 @@
       <span class="field-label">セトリ（任意）</span>
       <div class="setlist-wrap">
         <div class="songs-pool" id="vl-pool"></div>
-        <div class="setlist-list" id="vl-list"><p class="setlist-empty">曲をタップして追加</p></div>
+        <div class="setlist-custom">
+          <input type="text" id="vl-custom-song" placeholder="曲名を自由入力" onkeydown="if(event.key==='Enter'){event.preventDefault();slAddCustom('vl');}">
+          <button type="button" class="sl-add-btn" onclick="slAddCustom('vl')">＋追加</button>
+        </div>
+        <div class="setlist-list" id="vl-list"><p class="setlist-empty">曲をタップ、または自由入力して追加</p></div>
       </div>
     </div>
     <div class="modal-foot">
@@ -509,7 +518,11 @@
       <span class="field-label">セトリ（任意）</span>
       <div class="setlist-wrap">
         <div class="songs-pool" id="al-pool"></div>
-        <div class="setlist-list" id="al-list"><p class="setlist-empty">曲をタップして追加</p></div>
+        <div class="setlist-custom">
+          <input type="text" id="al-custom-song" placeholder="曲名を自由入力" onkeydown="if(event.key==='Enter'){event.preventDefault();slAddCustom('al');}">
+          <button type="button" class="sl-add-btn" onclick="slAddCustom('al')">＋追加</button>
+        </div>
+        <div class="setlist-list" id="al-list"><p class="setlist-empty">曲をタップ、または自由入力して追加</p></div>
       </div>
       <div style="display:flex;gap:16px;align-items:flex-start;margin-top:10px;flex-wrap:wrap;">
         <div>
@@ -628,7 +641,11 @@
       <span class="field-label">セトリ（任意）</span>
       <div class="setlist-wrap">
         <div class="songs-pool" id="el-pool"></div>
-        <div class="setlist-list" id="el-list"><p class="setlist-empty">曲をタップして追加</p></div>
+        <div class="setlist-custom">
+          <input type="text" id="el-custom-song" placeholder="曲名を自由入力" onkeydown="if(event.key==='Enter'){event.preventDefault();slAddCustom('el');}">
+          <button type="button" class="sl-add-btn" onclick="slAddCustom('el')">＋追加</button>
+        </div>
+        <div class="setlist-list" id="el-list"><p class="setlist-empty">曲をタップ、または自由入力して追加</p></div>
       </div>
       <div style="display:flex;gap:16px;align-items:flex-start;margin-top:10px;flex-wrap:wrap;">
         <div>
@@ -1698,7 +1715,7 @@ function renderSetlist(prefix, sl) {
 
   list.innerHTML = '';
   if (sl.length === 0) {
-    list.innerHTML = '<p class="setlist-empty">曲をタップして追加</p>';
+    list.innerHTML = '<p class="setlist-empty">曲をタップ、または自由入力して追加</p>';
     updateSetlistCanvas(prefix, sl);
     return;
   }
@@ -1717,17 +1734,30 @@ function renderSetlist(prefix, sl) {
   });
   updateSetlistCanvas(prefix, sl);
 }
+function slArray(prefix) {
+  return prefix === 'al' ? addSetlist : prefix === 'vl' ? vlSetlist : editSetlist;
+}
 function slMove(prefix, i, dir) {
-  const sl = prefix === 'al' ? addSetlist : editSetlist;
+  const sl = slArray(prefix);
   const j = i + dir;
   if (j < 0 || j >= sl.length) return;
   [sl[i], sl[j]] = [sl[j], sl[i]];
   renderSetlist(prefix, sl);
 }
 function slRemove(prefix, i) {
-  const sl = prefix === 'al' ? addSetlist : editSetlist;
+  const sl = slArray(prefix);
   sl.splice(i, 1);
   renderSetlist(prefix, sl);
+}
+function slAddCustom(prefix) {
+  const input = document.getElementById(`${prefix}-custom-song`);
+  if (!input) return;
+  const song = input.value.trim();
+  if (!song) return;
+  slArray(prefix).push(song);
+  input.value = '';
+  renderSetlist(prefix, slArray(prefix));
+  input.focus();
 }
 
 // ---- Add Live ----
