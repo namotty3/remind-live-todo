@@ -1,5 +1,6 @@
 const supabase = require('./database');
 const { getTasksForLive } = require('./tasks');
+const { formatSetlistLines, parseSetlist } = require('./setlistUtils');
 
 function todayJST() {
   const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
@@ -600,7 +601,7 @@ function buildTaskFlex(live, tasks) {
     bodyContents.push({ type: 'box', layout: 'vertical', backgroundColor: '#f5f5f5', cornerRadius: 'sm', paddingAll: 'sm', margin: 'md', contents: [{ type: 'text', text: `📝 ${live.description}`, size: 'sm', color: '#666666', wrap: true }] });
   }
   if (live.setlist) {
-    const songs = live.setlist.split(',').map((s, i) => `${i + 1}. ${s.trim()}`).join('\n');
+    const songs = formatSetlistLines(live.setlist).join('\n');
     bodyContents.push({ type: 'box', layout: 'vertical', backgroundColor: '#f0f8ff', cornerRadius: 'sm', paddingAll: 'sm', margin: 'md', contents: [{ type: 'text', text: '🎵 セトリ', size: 'xs', color: '#4A90D9', weight: 'bold' }, { type: 'text', text: songs, size: 'sm', color: '#333333', wrap: true, margin: 'sm' }] });
   }
   if (live.notes) {
@@ -1100,8 +1101,9 @@ async function handleListVideos(reply) {
       bodyContents.push({ type: 'text', text: `📍 ${v.venue}`, size: 'sm', color: '#666666', margin: 'sm' });
     }
     if (v.setlist) {
-      const songs = v.setlist.split(',').slice(0, 4).map((s, i) => `${i + 1}. ${s.trim()}`).join('\n');
-      const rest = v.setlist.split(',').length - 4;
+      const entries = parseSetlist(v.setlist);
+      const songs = entries.slice(0, 4).map((e, i) => `${i + 1}. ${e.name}`).join('\n');
+      const rest = entries.length - 4;
       bodyContents.push({
         type: 'text',
         text: songs + (rest > 0 ? `\n…他${rest}曲` : ''),

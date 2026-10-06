@@ -133,6 +133,8 @@
     .setlist-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #f5f5f5; }
     .setlist-num { width: 22px; height: 22px; background: #00B900; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; flex-shrink: 0; }
     .setlist-song { flex: 1; font-size: 14px; }
+    .sl-sync-toggle { display: flex; align-items: center; gap: 3px; font-size: 11px; color: #666; white-space: nowrap; cursor: pointer; }
+    .sl-sync-toggle input { width: 14px; height: 14px; accent-color: #c0392b; cursor: pointer; }
     .sl-btn { padding: 2px 7px; background: #f0f0f0; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
     .sl-btn:disabled { opacity: .3; cursor: default; }
     .sl-btn.rm { background: #ffe0e0; color: #e00; }
@@ -1086,7 +1088,7 @@ function renderVideoGrid() {
     const thumb = ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : null;
     const [y,m,d] = v.date.split('-');
     const dateStr = `${y}年${parseInt(m)}月${parseInt(d)}日`;
-    const songs = v.setlist ? v.setlist.split(',').map((s,i)=>`<span style="margin-right:8px">${i+1}. ${s.trim()}</span>`).join('') : '';
+    const songs = v.setlist ? slParse(v.setlist).map((e,i)=>`<span style="margin-right:8px">${i+1}. ${e.name}</span>`).join('') : '';
     return `
     <div class="video-card">
       <div class="video-thumb-wrap" onclick="window.open('${v.youtube_url}','_blank')">
@@ -1117,7 +1119,7 @@ function applyLiveToVideo() {
   document.getElementById('vl-date').value = live.date;
   document.getElementById('vl-name').value = live.name || '';
   document.getElementById('vl-venue').value = live.venue || '';
-  vlSetlist = live.setlist ? live.setlist.split(',').map(s=>s.trim()).filter(Boolean) : [];
+  vlSetlist = slParse(live.setlist);
   renderSetlist('vl', vlSetlist);
 }
 
@@ -1146,7 +1148,7 @@ function openEditVideo(id) {
   document.getElementById('vl-name').value = v.live_name;
   document.getElementById('vl-venue').value = v.venue || '';
   document.getElementById('vl-url').value = v.youtube_url;
-  vlSetlist = v.setlist ? v.setlist.split(',').map(s=>s.trim()).filter(Boolean) : [];
+  vlSetlist = slParse(v.setlist);
   renderSetlist('vl', vlSetlist);
   open_('video-edit-overlay');
 }
@@ -1162,7 +1164,7 @@ async function submitVideo() {
     date, live_name,
     venue: document.getElementById('vl-venue').value.trim(),
     youtube_url,
-    setlist: vlSetlist.length ? vlSetlist.join(',') : '',
+    setlist: vlSetlist.length ? slSerialize(vlSetlist) : '',
     live_id: document.getElementById('vl-live-select').value || null
   };
   try {
@@ -1491,7 +1493,8 @@ function drawSetlistTable(ctx, x, y, w, sl) {
 
   // Data rows
   let songNum = 0;
-  sl.forEach((name, idx) => {
+  sl.forEach((entry, idx) => {
+    const name = entry.name;
     const rowY = y + ROW_H * (idx + 1);
     const isMC = name === 'MC';
     const isSE = name.endsWith('SE');
@@ -1499,7 +1502,6 @@ function drawSetlistTable(ctx, x, y, w, sl) {
     const det = songsDetail[name];
     const mood = det ? det.mood : '';
     const dur = det ? det.duration_seconds : 0;
-    const pa = det ? det.pa_request : '';
 
     ctx.fillStyle = isSpecial ? '#f0f4f8' : (idx % 2 === 0 ? '#ffffff' : '#fafafa');
     ctx.fillRect(x, rowY, w, ROW_H);
@@ -1547,10 +1549,10 @@ function drawSetlistTable(ctx, x, y, w, sl) {
 
     // 音響リクエスト
     ctx.textAlign = 'left';
-    if (pa && pa !== 'なし') {
+    if (entry.sync) {
       ctx.fillStyle = '#c0392b';
       ctx.font = `12px ${JF}`;
-      ctx.fillText(pa, x + COLS_W[0] + COLS_W[1] + COLS_W[2] + COLS_W[3] + 6, rowY + 19);
+      ctx.fillText('同期あり', x + COLS_W[0] + COLS_W[1] + COLS_W[2] + COLS_W[3] + 6, rowY + 19);
     }
   });
 
@@ -1629,9 +1631,9 @@ async function drawSetlistDiagram(canvas, sl, liveName, liveDate, stageTime, dru
   const tableBottom = drawSetlistTable(ctx, PAD, tableY, W - PAD * 2, sl);
 
   // Footer
-  const totalSec = sl.reduce((s, n) => s + (songsDetail[n] ? songsDetail[n].duration_seconds : 0), 0);
+  const totalSec = sl.reduce((s, e) => s + (songsDetail[e.name] ? songsDetail[e.name].duration_seconds : 0), 0);
   const tm = Math.floor(totalSec / 60);
-  const paSongs = sl.filter(n => songsDetail[n] && songsDetail[n].pa_request === '同期あり');
+  const paSongs = sl.filter(e => e.sync).map(e => e.name);
   ctx.fillStyle = '#333';
   ctx.font = `13px ${JF}`;
   ctx.textAlign = 'left';
@@ -1661,10 +1663,10 @@ async function updateSetlistCanvas(prefix, sl) {
   const equipment = document.getElementById(`${prefix}-equipment`)?.value || '';
   await drawSetlistDiagram(canvas, sl, liveName, liveDate, stageTime, drumPattern, equipment);
   if (summary) {
-    const totalSec = sl.reduce((s, n) => s + (songsDetail[n] ? songsDetail[n].duration_seconds : 0), 0);
+    const totalSec = sl.reduce((s, e) => s + (songsDetail[e.name] ? songsDetail[e.name].duration_seconds : 0), 0);
     const tm = Math.floor(totalSec / 60), ts = totalSec % 60;
     summary.style.display = 'block';
-    summary.innerHTML = `⏱ 合計約${tm}分${ts > 0 ? ts + '秒' : ''}　|　${sl.filter(n => n !== 'MC').length}曲`;
+    summary.innerHTML = `⏱ 合計約${tm}分${ts > 0 ? ts + '秒' : ''}　|　${sl.filter(e => e.name !== 'MC').length}曲`;
   }
 }
 
@@ -1698,6 +1700,19 @@ async function uploadSetlistImage(prefix, liveId, liveDate, liveName, sl) {
 
 
 // ---- Setlist Picker ----
+// セトリ各項目は {name, sync} 形式。sync=trueの曲はセット図の「音響リクエスト」欄に「同期あり」と表示される。
+function slParse(raw) {
+  const list = raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : [];
+  return list.map(entry => {
+    if (entry.endsWith('::1')) return { name: entry.slice(0, -3), sync: true };
+    if (entry.endsWith('::0')) return { name: entry.slice(0, -3), sync: false };
+    return { name: entry, sync: false };
+  });
+}
+function slSerialize(sl) {
+  return sl.map(e => e.sync ? `${e.name}::1` : e.name).join(',');
+}
+
 function renderSetlist(prefix, sl) {
   const pool = document.getElementById(`${prefix}-pool`);
   const list = document.getElementById(`${prefix}-list`);
@@ -1706,10 +1721,10 @@ function renderSetlist(prefix, sl) {
   pool.innerHTML = '';
   allSongs.forEach(song => {
     const chip = document.createElement('span');
-    const isUsed = song !== 'MC' && sl.includes(song);
+    const isUsed = song !== 'MC' && sl.some(e => e.name === song);
     chip.className = 'song-chip' + (isUsed ? ' used' : '');
     chip.textContent = song;
-    if (!isUsed) chip.onclick = () => { sl.push(song); renderSetlist(prefix, sl); };
+    if (!isUsed) chip.onclick = () => { sl.push({ name: song, sync: songsDetail[song]?.pa_request === '同期あり' }); renderSetlist(prefix, sl); };
     pool.appendChild(chip);
   });
 
@@ -1719,12 +1734,13 @@ function renderSetlist(prefix, sl) {
     updateSetlistCanvas(prefix, sl);
     return;
   }
-  sl.forEach((song, i) => {
+  sl.forEach((entry, i) => {
     const div = document.createElement('div');
     div.className = 'setlist-item';
     div.innerHTML = `
       <div class="setlist-num">${i + 1}</div>
-      <div class="setlist-song">${song}</div>
+      <div class="setlist-song">${entry.name}</div>
+      <label class="sl-sync-toggle"><input type="checkbox" ${entry.sync ? 'checked' : ''} onchange="slToggleSync('${prefix}',${i},this.checked)">同期あり</label>
       <div style="display:flex;gap:4px">
         <button class="sl-btn" onclick="slMove('${prefix}',${i},-1)" ${i===0?'disabled':''}>↑</button>
         <button class="sl-btn" onclick="slMove('${prefix}',${i},1)" ${i===sl.length-1?'disabled':''}>↓</button>
@@ -1754,10 +1770,15 @@ function slAddCustom(prefix) {
   if (!input) return;
   const song = input.value.trim();
   if (!song) return;
-  slArray(prefix).push(song);
+  slArray(prefix).push({ name: song, sync: false });
   input.value = '';
   renderSetlist(prefix, slArray(prefix));
   input.focus();
+}
+function slToggleSync(prefix, i, checked) {
+  const sl = slArray(prefix);
+  if (sl[i]) sl[i].sync = checked;
+  updateSetlistCanvas(prefix, sl);
 }
 
 // ---- Add Live ----
@@ -1788,7 +1809,7 @@ async function submitAddLive() {
   if (!date) { alert('日付を選んでください'); return; }
   try {
     const alType = document.getElementById('al-type').value;
-    const live = await api('POST', '/lives', { date, type: alType, name: document.getElementById('al-name').value.trim(), venue: document.getElementById('al-venue').value.trim(), description: document.getElementById('al-desc').value.trim(), flyer_url: document.getElementById('al-flyer-url').value, setlist: addSetlist.length ? addSetlist.join(',') : '', notes: document.getElementById('al-notes').value.trim(), stage_time: document.getElementById('al-stage-time').value.trim(), drum_pattern: document.querySelector('input[name="al-drum"]:checked')?.value || '2タム', equipment: document.getElementById('al-equipment').value.trim(), taiban: alType === '主催' ? document.getElementById('al-taiban').value.trim() : '', is_public: document.getElementById('al-public').checked });
+    const live = await api('POST', '/lives', { date, type: alType, name: document.getElementById('al-name').value.trim(), venue: document.getElementById('al-venue').value.trim(), description: document.getElementById('al-desc').value.trim(), flyer_url: document.getElementById('al-flyer-url').value, setlist: addSetlist.length ? slSerialize(addSetlist) : '', notes: document.getElementById('al-notes').value.trim(), stage_time: document.getElementById('al-stage-time').value.trim(), drum_pattern: document.querySelector('input[name="al-drum"]:checked')?.value || '2タム', equipment: document.getElementById('al-equipment').value.trim(), taiban: alType === '主催' ? document.getElementById('al-taiban').value.trim() : '', is_public: document.getElementById('al-public').checked });
     if (addSetlist.length > 0) {
       await uploadSetlistImage('al', live.id, live.date, live.name || live.type, addSetlist);
     }
@@ -1848,7 +1869,7 @@ function openLiveDetail(live) {
   if (live.venue) meta += `<p>📍 ${live.venue}</p>`;
   if (live.description) meta += `<p style="white-space:pre-wrap">📝 ${live.description}</p>`;
   if (live.setlist) {
-    const songs = live.setlist.split(',').map((s,i) => `${i+1}. ${s.trim()}`).join('<br>');
+    const songs = slParse(live.setlist).map((e,i) => `${i+1}. ${e.name}${e.sync ? '（同期あり）' : ''}`).join('<br>');
     meta += `<p style="margin-top:8px"><strong>🎵 セトリ</strong><br><span style="font-size:13px;line-height:1.8">${songs}</span></p>`;
   }
   if (live.notes) meta += `<p>📌 ${live.notes}</p>`;
@@ -1911,7 +1932,7 @@ function openEditLive() {
   const dp = live.drum_pattern || '2タム';
   document.querySelectorAll('input[name="el-drum"]').forEach(r => { r.checked = r.value === dp; });
   setFlyerPreview('el', live.flyer_url || '');
-  editSetlist = live.setlist ? live.setlist.split(',').map(s => s.trim()).filter(Boolean) : [];
+  editSetlist = slParse(live.setlist);
   renderSetlist('el', editSetlist);
   open_('edit-live-overlay');
 }
@@ -1919,7 +1940,7 @@ function openEditLive() {
 async function submitEditLive() {
   try {
     const elType = document.getElementById('el-type').value;
-    const live = await api('PUT', `/lives/${currentLiveId}`, { date: document.getElementById('el-date').value, type: elType, name: document.getElementById('el-name').value.trim(), venue: document.getElementById('el-venue').value.trim(), description: document.getElementById('el-desc').value.trim(), flyer_url: document.getElementById('el-flyer-url').value, setlist: editSetlist.length ? editSetlist.join(',') : '', notes: document.getElementById('el-notes').value.trim(), stage_time: document.getElementById('el-stage-time').value.trim(), drum_pattern: document.querySelector('input[name="el-drum"]:checked')?.value || '2タム', equipment: document.getElementById('el-equipment').value.trim(), taiban: elType === '主催' ? document.getElementById('el-taiban').value.trim() : '', is_public: document.getElementById('el-public').checked });
+    const live = await api('PUT', `/lives/${currentLiveId}`, { date: document.getElementById('el-date').value, type: elType, name: document.getElementById('el-name').value.trim(), venue: document.getElementById('el-venue').value.trim(), description: document.getElementById('el-desc').value.trim(), flyer_url: document.getElementById('el-flyer-url').value, setlist: editSetlist.length ? slSerialize(editSetlist) : '', notes: document.getElementById('el-notes').value.trim(), stage_time: document.getElementById('el-stage-time').value.trim(), drum_pattern: document.querySelector('input[name="el-drum"]:checked')?.value || '2タム', equipment: document.getElementById('el-equipment').value.trim(), taiban: elType === '主催' ? document.getElementById('el-taiban').value.trim() : '', is_public: document.getElementById('el-public').checked });
     if (editSetlist.length > 0) {
       await uploadSetlistImage('el', currentLiveId, live.date, live.name || live.type, editSetlist);
     }
